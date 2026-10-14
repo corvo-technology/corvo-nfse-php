@@ -1,0 +1,53 @@
+{
+    "name": "corvo-technology/corvo-nfse",
+    "description": "PHP SDK for the Corvo NFS-e API — result-style errors, cursor pagination and webhook signature verification.",
+    "type": "library",
+    "license": "MIT",
+    "keywords": [
+        "nfse",
+        "corvo",
+        "brazil",
+        "fiscal",
+        "invoice",
+        "sdk"
+    ],
+    "authors": [
+        {
+            "name": "Corvo Technology",
+            "homepage": "https://corvo.tech"
+        }
+    ],
+    "require": {
+        "php": ">=8.2",
+        "guzzlehttp/guzzle": "^7.8",
+        "guzzlehttp/promises": "^2.0",
+        "psr/http-message": "^1.1 || ^2.0"
+    },
+    "require-dev": {
+        "php-http/mock-client": "^1.6",
+        "phpstan/phpstan": "^1.12 || ^2.0",
+        "phpunit/phpunit": "^10.5 || ^11.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "CorvoNfse\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "CorvoNfse\\Tests\\": "test/"
+        }
+    },
+    "scripts": {
+        "test": "phpunit",
+        "stan": "phpstan analyse --memory-limit=512M"
+    },
+    "config": {
+        "sort-packages": true,
+        "allow-plugins": {
+            "php-http/discovery": false
+        }
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true
+}
