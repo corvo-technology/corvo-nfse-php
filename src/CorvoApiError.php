@@ -26,7 +26,10 @@ final class CorvoApiError extends \Exception
      */
     public function __construct(
         public readonly int $status,
-        public readonly string $code,
+        // Untyped: redeclaring Exception::$code with a type or `readonly` is a
+        // fatal (parent property is untyped). Visibility widened to public so
+        // consumers can read the stable server code directly.
+        public $code,
         string $message,
         public readonly array $details = [],
         public readonly ?string $requestId = null,
