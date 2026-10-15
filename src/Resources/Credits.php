@@ -18,6 +18,8 @@ final class Credits
 
     /**
      * GET /v1/credits — current balance.
+     *
+     * @return Result<mixed>
      */
     public function balance(): Result
     {
@@ -27,7 +29,7 @@ final class Credits
     /**
      * GET /v1/credits/plans — cursor-paginated, items unwrapped from `props`.
      *
-     * @return Result array{data: list<mixed>, pagination: array<string, mixed>}
+     * @return Result<mixed> array{data: list<mixed>, pagination: array<string, mixed>}
      */
     public function plans(?int $limit = null, ?string $cursor = null): Result
     {
@@ -37,7 +39,7 @@ final class Credits
     /**
      * GET /v1/credits/history — cursor-paginated, items unwrapped from `props`.
      *
-     * @return Result array{data: list<mixed>, pagination: array<string, mixed>}
+     * @return Result<mixed> array{data: list<mixed>, pagination: array<string, mixed>}
      */
     public function history(?int $limit = null, ?string $cursor = null): Result
     {
@@ -61,6 +63,7 @@ final class Credits
     /**
      * List items arrive as `{props: {...}}`; unwrap to the entity itself.
      */
+    /** @return \Closure(mixed): mixed */
     private static function mapProps(): \Closure
     {
         return static function (mixed $item): mixed {

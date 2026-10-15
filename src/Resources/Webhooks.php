@@ -26,7 +26,7 @@ final class Webhooks
      *
      * @param array{limit?: int, cursor?: string} $params
      *
-     * @return Result array{data: list<mixed>, pagination: array<string, mixed>}
+     * @return Result<mixed> array{data: list<mixed>, pagination: array<string, mixed>}
      */
     public function list(array $params = []): Result
     {
@@ -51,6 +51,8 @@ final class Webhooks
      * POST /v1/webhooks — the response carries the signing `secret` exactly once.
      *
      * @param array{url: string, events: list<string>} $params
+     *
+     * @return Result<mixed>
      */
     public function create(array $params): Result
     {
@@ -59,6 +61,8 @@ final class Webhooks
 
     /**
      * DELETE /v1/webhooks/{id} — returns `{deleted: true}`.
+     *
+     * @return Result<mixed>
      */
     public function remove(string $id): Result
     {
@@ -67,12 +71,15 @@ final class Webhooks
 
     /**
      * POST /v1/webhooks/{id}/test — sends a `webhook.test` event; returns `{sent: true}`.
+     *
+     * @return Result<mixed>
      */
     public function test(string $id): Result
     {
         return $this->http->request('POST', '/webhooks/' . rawurlencode($id) . '/test');
     }
 
+    /** @return \Closure(mixed): mixed */
     private static function plain(): \Closure
     {
         return static fn (mixed $item): mixed => $item;

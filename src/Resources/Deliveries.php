@@ -19,7 +19,7 @@ final class Deliveries
     /**
      * GET /v1/webhooks/deliveries
      *
-     * @return Result array{data: list<mixed>, pagination: array<string, mixed>}
+     * @return Result<mixed> array{data: list<mixed>, pagination: array<string, mixed>}
      */
     public function list(
         ?int $hours = null,
@@ -50,6 +50,8 @@ final class Deliveries
 
     /**
      * GET /v1/webhooks/deliveries/stats — counters for the last N hours.
+     *
+     * @return Result<mixed>
      */
     public function stats(?int $hours = null, ?string $environment = null): Result
     {
@@ -62,6 +64,8 @@ final class Deliveries
 
     /**
      * POST /v1/webhooks/deliveries/{deliveryId}/retry — returns `{retried: true}`.
+     *
+     * @return Result<mixed>
      */
     public function retry(string $deliveryId): Result
     {
@@ -71,6 +75,7 @@ final class Deliveries
         );
     }
 
+    /** @return \Closure(mixed): mixed */
     private static function plain(): \Closure
     {
         return static fn (mixed $item): mixed => $item;

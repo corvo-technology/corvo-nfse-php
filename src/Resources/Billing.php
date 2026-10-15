@@ -18,6 +18,8 @@ final class Billing
 
     /**
      * GET /v1/billing/plan — plan, subscription and usage snapshot.
+     *
+     * @return Result<mixed>
      */
     public function plan(): Result
     {
@@ -26,6 +28,8 @@ final class Billing
 
     /**
      * GET /v1/billing/usage — current quota status.
+     *
+     * @return Result<mixed>
      */
     public function usage(): Result
     {

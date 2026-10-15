@@ -20,6 +20,8 @@ final class Companies
      * POST /v1/companies
      *
      * @param array<string, mixed> $params `CompanyCreateParams` (wire camelCase).
+     *
+     * @return Result<mixed>
      */
     public function create(array $params): Result
     {
@@ -29,7 +31,7 @@ final class Companies
     /**
      * GET /v1/companies
      *
-     * @return Result array{data: list<mixed>, pagination: array<string, mixed>}
+     * @return Result<mixed> array{data: list<mixed>, pagination: array<string, mixed>}
      */
     public function list(?int $limit = null, ?string $cursor = null): Result
     {
@@ -52,6 +54,8 @@ final class Companies
 
     /**
      * GET /v1/companies/{id}
+     *
+     * @return Result<mixed>
      */
     public function get(string $id): Result
     {
@@ -62,6 +66,8 @@ final class Companies
      * PATCH /v1/companies/{id}
      *
      * @param array<string, mixed> $params `CompanyUpdateParams` (wire camelCase).
+     *
+     * @return Result<mixed>
      */
     public function update(string $id, array $params): Result
     {
@@ -70,12 +76,15 @@ final class Companies
 
     /**
      * DELETE /v1/companies/{id} — 204 yields `new Result(null, null)`.
+     *
+     * @return Result<mixed>
      */
     public function remove(string $id): Result
     {
         return $this->http->request('DELETE', '/companies/' . rawurlencode($id));
     }
 
+    /** @return \Closure(mixed): mixed */
     private static function plain(): \Closure
     {
         return static fn (mixed $item): mixed => $item;

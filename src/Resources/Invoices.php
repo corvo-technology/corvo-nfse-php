@@ -25,6 +25,8 @@ final class Invoices
      *
      * @param array<string, mixed> $params `InvoiceCreateParams` (wire camelCase).
      * @param string|null $idempotencyKey safe retry key; sent as `Idempotency-Key`.
+     *
+     * @return Result<mixed>
      */
     public function create(array $params, ?string $idempotencyKey = null): Result
     {
@@ -39,6 +41,8 @@ final class Invoices
 
     /**
      * GET /v1/invoices/{id}
+     *
+     * @return Result<mixed>
      */
     public function get(string $id): Result
     {
@@ -58,7 +62,7 @@ final class Invoices
      *     cursor?: string
      * } $params
      *
-     * @return Result array{data: list<mixed>, pagination: array<string, mixed>}
+     * @return Result<mixed> array{data: list<mixed>, pagination: array<string, mixed>}
      */
     public function list(array $params = []): Result
     {
@@ -84,7 +88,7 @@ final class Invoices
      *
      * @param array{limit?: int, cursor?: string} $params
      *
-     * @return Result array{data: list<mixed>, pagination: array<string, mixed>}
+     * @return Result<mixed> array{data: list<mixed>, pagination: array<string, mixed>}
      */
     public function events(string $id, array $params = []): Result
     {
@@ -97,6 +101,8 @@ final class Invoices
 
     /**
      * GET /v1/invoices/{id}/pdf — raw bytes in `Result->data` as a DownloadedFile.
+     *
+     * @return Result<mixed>
      */
     public function pdf(string $id): Result
     {
@@ -105,6 +111,8 @@ final class Invoices
 
     /**
      * GET /v1/invoices/{id}/xml — raw bytes in `Result->data` as a DownloadedFile.
+     *
+     * @return Result<mixed>
      */
     public function xml(string $id): Result
     {
@@ -113,6 +121,8 @@ final class Invoices
 
     /**
      * POST /v1/invoices/{id}/download-url — a short-lived signed URL.
+     *
+     * @return Result<mixed>
      */
     public function downloadUrl(string $id, string $format): Result
     {
@@ -131,6 +141,8 @@ final class Invoices
      * POST /v1/invoices/{id}/email — (re)send the invoice email.
      *
      * @param string|null $idempotencyKey safe retry key; sent as `Idempotency-Key`.
+     *
+     * @return Result<mixed>
      */
     public function sendEmail(string $id, ?string $idempotencyKey = null): Result
     {
@@ -144,6 +156,7 @@ final class Invoices
     /**
      * List items arrive as `{props: {...}}`; unwrap to the entity itself.
      */
+    /** @return \Closure(mixed): mixed */
     private static function mapProps(): \Closure
     {
         return static function (mixed $item): mixed {

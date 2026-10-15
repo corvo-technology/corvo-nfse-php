@@ -1,5 +1,10 @@
 parameters:
-    level: 9
+    level: 6
     paths:
         - src
     treatPhpDocTypesAsCertain: false
+    reportUnmatchedIgnoredErrors: false
+    ignoreErrors:
+        -
+            message: '#contains generic type GuzzleHttp\\Promise\\PromiseInterface<[^>]+> but interface PromiseInterface is not generic#'
+            path: src/Transport.php

@@ -29,6 +29,7 @@ final class CorvoApiError extends \Exception
         // Untyped: redeclaring Exception::$code with a type or `readonly` is a
         // fatal (parent property is untyped). Visibility widened to public so
         // consumers can read the stable server code directly.
+        /** @var string */
         public $code,
         string $message,
         public readonly array $details = [],

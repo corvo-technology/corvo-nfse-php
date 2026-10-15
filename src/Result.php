@@ -15,12 +15,15 @@ namespace CorvoNfse;
  * exception is `iterate()`, which raises the error on a page failure because
  * a generator has no channel to return a Result.
  *
+ * The payload is `mixed` (the wire format is untyped); the `@template T`
+ * marker lets consumers add narrower annotations in their own PHPDoc.
+ *
  * @template T
  */
 final readonly class Result
 {
     /**
-     * @param T $data unwrapped payload on success; null on failure
+     * @param mixed $data unwrapped payload on success; null on failure
      *        (deletions/`204 No Content` also yield null on success).
      * @param CorvoApiError|null $error null on success, the error on failure.
      */

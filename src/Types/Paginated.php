@@ -18,6 +18,7 @@ final readonly class Paginated
      * @param list<mixed> $data
      */
     public function __construct(
+        /** @var list<mixed> */
         public array $data,
         public Pagination $pagination,
     ) {

@@ -11,6 +11,9 @@ final readonly class WebhookDelivery
 {
     use Wire;
 
+    /**
+     * @param array<mixed> $payload
+     */
     public function __construct(
         public string $id,
         public string $tenantId,
@@ -18,7 +21,7 @@ final readonly class WebhookDelivery
         public string $eventType,
         public string $environment,
         public string $url,
-        /** @var array<string, mixed> */
+        /** @var array<mixed> */
         public array $payload,
         public ?int $statusCode,
         public mixed $responseBody,

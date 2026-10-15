@@ -15,22 +15,28 @@ final readonly class Invoice
 {
     use Wire;
 
+    /**
+     * @param array<mixed> $emailSnapshot
+     * @param array<mixed> $customerSnapshot
+     * @param array<mixed> $serviceSnapshot
+     * @param array<mixed> $taxSnapshot
+     */
     public function __construct(
         public string $id,
         public string $companyId,
         public string $tenantId,
         public string $environment,
         public int $documentKeyVersion,
-        /** @var array<string, mixed> */
+        /** @var array<mixed> */
         public array $emailSnapshot,
         public ?string $externalId,
         public ?string $idempotencyKey,
         public string $status,
-        /** @var array<string, mixed> */
+        /** @var array<mixed> */
         public array $customerSnapshot,
-        /** @var array<string, mixed> */
+        /** @var array<mixed> */
         public array $serviceSnapshot,
-        /** @var array<string, mixed> */
+        /** @var array<mixed> */
         public array $taxSnapshot,
         public float $amount,
         public string $currency,

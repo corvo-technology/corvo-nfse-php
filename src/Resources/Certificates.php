@@ -21,6 +21,8 @@ final class Certificates
      *
      * @param string $file raw bytes of the certificate file.
      * @param string $password certificate password.
+     *
+     * @return Result<mixed>
      */
     public function upload(string $companyId, string $file, string $password, ?string $fileName = null): Result
     {
@@ -45,7 +47,7 @@ final class Certificates
     /**
      * GET /v1/companies/{companyId}/certificates
      *
-     * @return Result array{data: list<mixed>, pagination: array<string, mixed>}
+     * @return Result<mixed> array{data: list<mixed>, pagination: array<string, mixed>}
      */
     public function list(string $companyId, ?int $limit = null, ?string $cursor = null): Result
     {
@@ -58,6 +60,8 @@ final class Certificates
 
     /**
      * DELETE /v1/companies/{companyId}/certificates/{certId} — 204 yields null data.
+     *
+     * @return Result<mixed>
      */
     public function remove(string $companyId, string $certId): Result
     {

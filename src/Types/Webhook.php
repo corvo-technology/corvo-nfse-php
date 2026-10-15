@@ -11,6 +11,9 @@ readonly class Webhook
 {
     use Wire;
 
+    /**
+     * @param list<string> $events
+     */
     public function __construct(
         public string $id,
         public string $url,
@@ -30,7 +33,7 @@ readonly class Webhook
         return new self(
             self::wireStr($data, 'id') ?? '',
             self::wireStr($data, 'url') ?? '',
-            array_values(array_map('strval', self::wireArr($data, 'events'))),
+            array_values(array_map(static fn (mixed $item): string => (string) $item, self::wireArr($data, 'events'))),
             self::wireBool($data, 'active') ?? false,
             self::wireStr($data, 'createdAt') ?? '',
             self::wireStr($data, 'updatedAt') ?? '',

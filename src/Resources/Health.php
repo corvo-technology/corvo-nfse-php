@@ -18,6 +18,8 @@ final class Health
 
     /**
      * GET /v1/health/live — raw body, no `{data}` envelope.
+     *
+     * @return Result<mixed>
      */
     public function live(): Result
     {
@@ -26,6 +28,8 @@ final class Health
 
     /**
      * GET /v1/health/ready — raw body, no `{data}` envelope.
+     *
+     * @return Result<mixed>
      */
     public function ready(): Result
     {

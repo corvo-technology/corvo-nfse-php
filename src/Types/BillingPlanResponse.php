@@ -16,26 +16,18 @@ final readonly class BillingPlanResponse
     use Wire;
 
     /**
-     * @param array{
-     *     slug: string,
-     *     name: string,
-     *     monthly_allowance: int,
-     *     daily_limit: int|null,
-     *     max_active_companies: int,
-     *     monthly_price_cents: int
-     * } $plan
-     * @param array{
-     *     status: string,
-     *     paid_until: string|null,
-     *     cancel_at_period_end: bool,
-     *     scheduled_plan: string|null,
-     *     blocked: bool
-     * } $subscription
-     * @param array<string, int|float|string|null> $usage
+     * @param array<mixed> $plan raw plan block: `{slug, name, monthly_allowance,
+     *        daily_limit, max_active_companies, monthly_price_cents}` (snake_case).
+     * @param array<mixed> $subscription raw subscription block: `{status,
+     *        paid_until, cancel_at_period_end, scheduled_plan, blocked}`.
+     * @param array<mixed> $usage raw usage counters block.
      */
     public function __construct(
+        /** @var array<mixed> */
         public array $plan,
+        /** @var array<mixed> */
         public array $subscription,
+        /** @var array<mixed> */
         public array $usage,
     ) {
     }

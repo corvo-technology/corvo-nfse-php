@@ -77,6 +77,8 @@ final class Transport
      * @param array<string, mixed>|null $json JSON request body (sets Content-Type).
      * @param array<string, mixed>|null $query stringifiable query params; nulls are dropped.
      * @param string $unwrap one of the UNWRAP_* constants.
+     *
+     * @return Result<mixed>
      */
     public function request(
         string $method,
@@ -92,7 +94,9 @@ final class Transport
     /**
      * Async variant of {@see request()}: resolves with a {@see Result}, never rejects.
      *
-     * @return PromiseInterface<Result>
+     * @param array<string, mixed>|null $json
+     * @param array<string, mixed>|null $query
+     * @return PromiseInterface
      */
     public function requestAsync(
         string $method,
@@ -122,6 +126,9 @@ final class Transport
      * Perform a `multipart/form-data` request (certificate uploads).
      *
      * @param array<int, array<string, mixed>> $multipart Guzzle multipart parts.
+     * @param array<string, mixed>|null $query
+     *
+     * @return Result<mixed>
      */
     public function requestMultipart(
         string $method,
@@ -148,6 +155,10 @@ final class Transport
 
     /**
      * Perform a request and return the raw bytes (no envelope unwrapping).
+     *
+     * @param array<string, mixed>|null $query
+     *
+     * @return Result<mixed>
      */
     public function requestRaw(string $method, string $path, ?array $query = null): Result
     {
@@ -196,6 +207,8 @@ final class Transport
      *
      * @param array<string, mixed>|null $query
      * @param callable(mixed): mixed $mapItem
+     *
+     * @return Result<mixed> array{data: list<mixed>, pagination: array<string, mixed>}
      */
     public function list(string $path, ?array $query, callable $mapItem): Result
     {
@@ -256,7 +269,6 @@ final class Transport
     }
 
     /**
-     * @param array<string, mixed>|null $json
      * @param array<string, mixed>|null $query
      */
     private function buildUrl(string $path, ?array $query): string
@@ -314,6 +326,7 @@ final class Transport
         return $options;
     }
 
+    /** @return Result<mixed> */
     private function handleResponse(ResponseInterface $response, string $unwrap): Result
     {
         $status = $response->getStatusCode();
@@ -424,6 +437,7 @@ final class Transport
         );
     }
 
+    /** @return Result<mixed> */
     private function rejectionToResult(mixed $reason, string $unwrap): Result
     {
         if ($reason instanceof RequestException && $reason->getResponse() !== null) {
@@ -497,7 +511,7 @@ final class Transport
             return false;
         }
 
-        $octets = array_map('intval', explode('.', $host));
+        $octets = array_map(static fn (string $octet): int => (int) $octet, explode('.', $host));
 
         return $octets[0] === 127
             || $octets[0] === 10

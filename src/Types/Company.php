@@ -11,6 +11,9 @@ final readonly class Company
 {
     use Wire;
 
+    /**
+     * @param list<string> $setupGaps
+     */
     public function __construct(
         public string $id,
         public string $tenantId,
@@ -69,7 +72,7 @@ final readonly class Company
             self::wireStr($data, 'createdAt') ?? '',
             self::wireStr($data, 'updatedAt') ?? '',
             self::wireStr($data, 'deletedAt'),
-            array_values(array_map('strval', self::wireArr($data, 'setupGaps'))),
+            array_values(array_map(static fn (mixed $item): string => (string) $item, self::wireArr($data, 'setupGaps'))),
         );
     }
 }

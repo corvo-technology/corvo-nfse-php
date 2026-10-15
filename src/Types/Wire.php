@@ -13,7 +13,7 @@ namespace CorvoNfse\Types;
  */
 trait Wire
 {
-    /** @param array<string, mixed> $data */
+    /** @param array<mixed> $data */
     protected static function wireStr(array $data, string $key): ?string
     {
         $value = $data[$key] ?? null;
@@ -21,7 +21,7 @@ trait Wire
         return is_scalar($value) ? (string) $value : null;
     }
 
-    /** @param array<string, mixed> $data */
+    /** @param array<mixed> $data */
     protected static function wireInt(array $data, string $key): ?int
     {
         $value = $data[$key] ?? null;
@@ -38,7 +38,7 @@ trait Wire
         return null;
     }
 
-    /** @param array<string, mixed> $data */
+    /** @param array<mixed> $data */
     protected static function wireFloat(array $data, string $key): ?float
     {
         $value = $data[$key] ?? null;
@@ -52,7 +52,7 @@ trait Wire
         return null;
     }
 
-    /** @param array<string, mixed> $data */
+    /** @param array<mixed> $data */
     protected static function wireBool(array $data, string $key): ?bool
     {
         $value = $data[$key] ?? null;
@@ -61,7 +61,7 @@ trait Wire
     }
 
     /**
-     * @param array<string, mixed> $data
+     * @param array<mixed> $data
      *
      * @return array<mixed>
      */
