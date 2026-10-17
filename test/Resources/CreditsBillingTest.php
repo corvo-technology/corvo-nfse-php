@@ -26,11 +26,11 @@ final class CreditsBillingTest extends TestCase
         self::assertSame($balance, $result->data);
     }
 
-    public function testPlansUnwrapProps(): void
+    public function testPlansReturnsTheItems(): void
     {
         [$client, $mock] = MockApi::client([
             MockApi::json([
-                'data' => [['props' => ['id' => 'plan_1', 'slug' => 'pro', 'dailyLimit' => 5000]]],
+                'data' => [['id' => 'plan_1', 'slug' => 'pro', 'dailyLimit' => 5000]],
                 'pagination' => ['limit' => 20, 'hasMore' => false, 'nextCursor' => null],
             ]),
         ]);
@@ -49,11 +49,11 @@ final class CreditsBillingTest extends TestCase
     {
         [$client, $mock] = MockApi::client([
             MockApi::json([
-                'data' => [['props' => ['id' => 'tx_1', 'type' => 'emission', 'creditDelta' => -1]]],
+                'data' => [['id' => 'tx_1', 'type' => 'emission', 'creditDelta' => -1]],
                 'pagination' => ['limit' => 50, 'hasMore' => false, 'nextCursor' => null],
             ]),
             MockApi::json([
-                'data' => [['props' => ['id' => 'tx_2']]],
+                'data' => [['id' => 'tx_2']],
                 'pagination' => ['limit' => 1, 'hasMore' => false, 'nextCursor' => null],
             ]),
         ]);

@@ -23,6 +23,8 @@ final readonly class QuotaStatus
         public int $maxActiveCompanies,
         public ?string $periodStart,
         public ?string $periodEnd,
+        /** Set when `canEmit` is false: no_credits, daily_limit_exceeded, company_limit_exceeded or plan_blocked. */
+        public ?string $reason,
     ) {
     }
 
@@ -43,6 +45,7 @@ final readonly class QuotaStatus
             self::wireInt($data, 'maxActiveCompanies') ?? 0,
             self::wireStr($data, 'periodStart'),
             self::wireStr($data, 'periodEnd'),
+            self::wireStr($data, 'reason'),
         );
     }
 }

@@ -1,10 +1,16 @@
 {
     "name": "corvo-technology/corvo-nfse",
-    "description": "PHP SDK for the Corvo NFS-e API — result-style errors, cursor pagination and webhook signature verification.",
+    "description": "PHP SDK for the Corvo NFS-e API: issue Brazilian service invoices, calculate taxes, verify webhooks.",
+    "homepage": "https://corvo.tech",
+    "support": {
+        "docs": "https://corvo.tech/en/api-docs",
+        "issues": "https://github.com/corvo-technology/corvo-nfse-php/issues"
+    },
     "type": "library",
     "license": "MIT",
     "keywords": [
         "nfse",
+        "nota-fiscal",
         "corvo",
         "brazil",
         "fiscal",

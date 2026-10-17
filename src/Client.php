@@ -10,6 +10,7 @@ use CorvoNfse\Resources\Companies;
 use CorvoNfse\Resources\Credits;
 use CorvoNfse\Resources\Health;
 use CorvoNfse\Resources\Invoices;
+use CorvoNfse\Resources\Plans;
 use CorvoNfse\Resources\Webhooks;
 use GuzzleHttp\ClientInterface;
 use InvalidArgumentException;
@@ -36,6 +37,7 @@ final class Client
     public readonly Credits $credits;
     public readonly Health $health;
     public readonly Invoices $invoices;
+    public readonly Plans $plans;
     public readonly Webhooks $webhooks;
 
     /**
@@ -83,6 +85,7 @@ final class Client
         $this->credits = new Credits($this->transport);
         $this->health = new Health($this->transport);
         $this->invoices = new Invoices($this->transport);
+        $this->plans = new Plans($this->transport);
         $this->webhooks = new Webhooks($this->transport);
     }
 

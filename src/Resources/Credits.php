@@ -27,23 +27,23 @@ final class Credits
     }
 
     /**
-     * GET /v1/credits/plans — cursor-paginated, items unwrapped from `props`.
+     * GET /v1/credits/plans — cursor-paginated.
      *
      * @return Result<mixed> array{data: list<mixed>, pagination: array<string, mixed>}
      */
     public function plans(?int $limit = null, ?string $cursor = null): Result
     {
-        return $this->http->list('/credits/plans', ['limit' => $limit, 'cursor' => $cursor], self::mapProps());
+        return $this->http->list('/credits/plans', ['limit' => $limit, 'cursor' => $cursor], self::plain());
     }
 
     /**
-     * GET /v1/credits/history — cursor-paginated, items unwrapped from `props`.
+     * GET /v1/credits/history — cursor-paginated.
      *
      * @return Result<mixed> array{data: list<mixed>, pagination: array<string, mixed>}
      */
     public function history(?int $limit = null, ?string $cursor = null): Result
     {
-        return $this->http->list('/credits/history', ['limit' => $limit, 'cursor' => $cursor], self::mapProps());
+        return $this->http->list('/credits/history', ['limit' => $limit, 'cursor' => $cursor], self::plain());
     }
 
     /**
@@ -57,21 +57,12 @@ final class Credits
      */
     public function iterateHistory(array $params = []): \Generator
     {
-        return $this->http->iterate('/credits/history', $params, self::mapProps());
+        return $this->http->iterate('/credits/history', $params, self::plain());
     }
 
-    /**
-     * List items arrive as `{props: {...}}`; unwrap to the entity itself.
-     */
     /** @return \Closure(mixed): mixed */
-    private static function mapProps(): \Closure
+    private static function plain(): \Closure
     {
-        return static function (mixed $item): mixed {
-            if (is_array($item) && array_key_exists('props', $item)) {
-                return $item['props'];
-            }
-
-            return $item;
-        };
+        return static fn (mixed $item): mixed => $item;
     }
 }

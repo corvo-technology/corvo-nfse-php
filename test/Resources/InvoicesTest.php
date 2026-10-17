@@ -29,10 +29,10 @@ final class InvoicesTest extends TestCase
         'updatedAt' => '2026-10-12T13:04:40.230Z',
     ];
 
-    public function testCreateSendsIdempotencyKeyAndUnwrapsProps(): void
+    public function testCreateSendsIdempotencyKeyAndReturnsTheInvoice(): void
     {
         [$client, $mock] = MockApi::client([
-            MockApi::json(['data' => ['props' => self::INVOICE]], 201),
+            MockApi::json(['data' => self::INVOICE], 201),
         ]);
 
         $result = $client->invoices->create(
@@ -61,10 +61,10 @@ final class InvoicesTest extends TestCase
         self::assertSame('52998224725', $body['customer']['taxId']);
     }
 
-    public function testGetUnwrapsProps(): void
+    public function testGetReturnsTheInvoice(): void
     {
         [$client, $mock] = MockApi::client([
-            MockApi::json(['data' => ['props' => self::INVOICE]]),
+            MockApi::json(['data' => self::INVOICE]),
         ]);
 
         $result = $client->invoices->get('inv_1');
@@ -77,13 +77,13 @@ final class InvoicesTest extends TestCase
         self::assertSame('http://localhost:4000/v1/invoices/inv_1', (string) $request->getUri());
     }
 
-    public function testListUnwrapsItemPropsAndPassesQueryThrough(): void
+    public function testListReturnsItemsAndPassesQueryThrough(): void
     {
         [$client, $mock] = MockApi::client([
             MockApi::json([
                 'data' => [
-                    ['props' => ['id' => 'inv_1', 'status' => 'authorized']],
-                    ['props' => ['id' => 'inv_2', 'status' => 'rejected']],
+                    ['id' => 'inv_1', 'status' => 'authorized'],
+                    ['id' => 'inv_2', 'status' => 'rejected'],
                 ],
                 'pagination' => ['limit' => 50, 'hasMore' => true, 'nextCursor' => 'cur_2'],
             ]),
@@ -109,7 +109,7 @@ final class InvoicesTest extends TestCase
         [$client, $mock] = MockApi::client([
             MockApi::json([
                 'data' => [
-                    ['props' => ['id' => 'evt_1', 'toStatus' => 'authorized', 'reason' => null]],
+                    ['id' => 'evt_1', 'toStatus' => 'authorized', 'reason' => null],
                 ],
                 'pagination' => ['limit' => 20, 'hasMore' => false, 'nextCursor' => null],
             ]),

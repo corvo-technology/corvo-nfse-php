@@ -50,7 +50,8 @@ final class WebhooksVerifyTest extends TestCase
     public function testExportsNineWebhookEvents(): void
     {
         self::assertCount(9, Webhooks::WEBHOOK_EVENTS);
-        self::assertContains('webhook.test', Webhooks::WEBHOOK_EVENTS);
+        self::assertContains('nfse.invoice.fiscal_discrepancy', Webhooks::WEBHOOK_EVENTS);
+        self::assertNotContains('webhook.test', Webhooks::WEBHOOK_EVENTS);
         self::assertContains('nfse.invoice.authorized', Webhooks::WEBHOOK_EVENTS);
     }
 }
