@@ -6,6 +6,8 @@ namespace CorvoNfse\Types;
 
 /**
  * Wire mirror of a credit ledger entry (GET /credits/history).
+ *
+ * `amount` is in credits (not BRL); fields ending in `Cents` are in centavos.
  */
 final readonly class CreditTransaction
 {
@@ -13,14 +15,19 @@ final readonly class CreditTransaction
 
     public function __construct(
         public string $id,
+        public string $tenantId,
         public string $type,
         public float $amount,
-        public float $creditDelta,
-        public float $balanceAfter,
-        public string $environment,
-        public string $source,
-        public ?string $referenceType,
-        public ?string $referenceId,
+        public ?string $description,
+        /** `subscription`, `avulso` or `bonus`. */
+        public ?string $source,
+        public ?int $amountBrlCents,
+        public ?int $unitPriceCentsApplied,
+        public ?string $planIdSnapshot,
+        public ?string $reservedInvoiceId,
+        public ?string $periodId,
+        public ?bool $isReservation,
+        public ?string $relatedTransactionId,
         public string $createdAt,
     ) {
     }
@@ -32,14 +39,18 @@ final readonly class CreditTransaction
     {
         return new self(
             self::wireStr($data, 'id') ?? '',
+            self::wireStr($data, 'tenantId') ?? '',
             self::wireStr($data, 'type') ?? '',
             self::wireFloat($data, 'amount') ?? 0.0,
-            self::wireFloat($data, 'creditDelta') ?? 0.0,
-            self::wireFloat($data, 'balanceAfter') ?? 0.0,
-            self::wireStr($data, 'environment') ?? '',
-            self::wireStr($data, 'source') ?? '',
-            self::wireStr($data, 'referenceType'),
-            self::wireStr($data, 'referenceId'),
+            self::wireStr($data, 'description'),
+            self::wireStr($data, 'source'),
+            self::wireInt($data, 'amountBrlCents'),
+            self::wireInt($data, 'unitPriceCentsApplied'),
+            self::wireStr($data, 'planIdSnapshot'),
+            self::wireStr($data, 'reservedInvoiceId'),
+            self::wireStr($data, 'periodId'),
+            self::wireBool($data, 'isReservation'),
+            self::wireStr($data, 'relatedTransactionId'),
             self::wireStr($data, 'createdAt') ?? '',
         );
     }

@@ -11,8 +11,7 @@ use InvalidArgumentException;
 /**
  * NFS-e invoices: issue, read, list, download documents and send emails.
  *
- * Invoice entities are wrapped as `{data: {props: ...}}` by the server; the
- * SDK unwraps them transparently.
+ * Resources come straight in the response `data`; lists add `pagination`.
  */
 final class Invoices
 {
@@ -23,7 +22,10 @@ final class Invoices
     /**
      * POST /v1/invoices
      *
-     * @param array<string, mixed> $params `InvoiceCreateParams` (wire camelCase).
+     * @param array<string, mixed> $params `InvoiceCreateParams` (wire camelCase). Identify the
+     *        company with `companyId` or `companyTaxId`; `customer` is optional (when sent,
+     *        `taxId` is required); `service.code`, `service.municipalityCode` and
+     *        `service.description` are optional; `options.type` is `IMMEDIATE` or `SCHEDULE`.
      * @param string|null $idempotencyKey safe retry key; sent as `Idempotency-Key`.
      *
      * @return Result<mixed>
@@ -35,8 +37,22 @@ final class Invoices
             '/invoices',
             json: $params,
             idempotencyKey: $idempotencyKey,
-            unwrap: Transport::UNWRAP_DATA_PROPS,
         );
+    }
+
+    /**
+     * POST /v1/invoices/calculate — estimate the taxes without issuing, storing or charging.
+     *
+     * Same body as {@see create()}. A fiscal gap is not an error: the result has
+     * `status: "blocked"` with `blocking` and `pendingFields`. Money values are decimal strings.
+     *
+     * @param array<string, mixed> $params `InvoiceCreateParams` (wire camelCase).
+     *
+     * @return Result<mixed>
+     */
+    public function calculate(array $params): Result
+    {
+        return $this->http->request('POST', '/invoices/calculate', json: $params);
     }
 
     /**
@@ -46,11 +62,11 @@ final class Invoices
      */
     public function get(string $id): Result
     {
-        return $this->http->request('GET', '/invoices/' . rawurlencode($id), unwrap: Transport::UNWRAP_DATA_PROPS);
+        return $this->http->request('GET', '/invoices/' . rawurlencode($id));
     }
 
     /**
-     * GET /v1/invoices — cursor-paginated, items unwrapped from `props`.
+     * GET /v1/invoices — cursor-paginated.
      *
      * @param array{
      *     companyId?: string,
@@ -66,7 +82,7 @@ final class Invoices
      */
     public function list(array $params = []): Result
     {
-        return $this->http->list('/invoices', $params, self::mapProps());
+        return $this->http->list('/invoices', $params, self::plain());
     }
 
     /**
@@ -80,7 +96,7 @@ final class Invoices
      */
     public function iterate(array $params = []): \Generator
     {
-        return $this->http->iterate('/invoices', $params, self::mapProps());
+        return $this->http->iterate('/invoices', $params, self::plain());
     }
 
     /**
@@ -95,7 +111,7 @@ final class Invoices
         return $this->http->list(
             '/invoices/' . rawurlencode($id) . '/events',
             $params,
-            self::mapProps(),
+            self::plain(),
         );
     }
 
@@ -153,18 +169,9 @@ final class Invoices
         );
     }
 
-    /**
-     * List items arrive as `{props: {...}}`; unwrap to the entity itself.
-     */
     /** @return \Closure(mixed): mixed */
-    private static function mapProps(): \Closure
+    private static function plain(): \Closure
     {
-        return static function (mixed $item): mixed {
-            if (is_array($item) && array_key_exists('props', $item)) {
-                return $item['props'];
-            }
-
-            return $item;
-        };
+        return static fn (mixed $item): mixed => $item;
     }
 }

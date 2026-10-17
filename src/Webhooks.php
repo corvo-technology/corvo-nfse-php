@@ -23,7 +23,7 @@ final class Webhooks
         'nfse.invoice.documents_ready',
         'nfse.invoice.email_sent',
         'nfse.invoice.email_failed',
-        'webhook.test',
+        'nfse.invoice.fiscal_discrepancy',
     ];
 
     private function __construct()

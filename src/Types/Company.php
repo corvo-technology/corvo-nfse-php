@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace CorvoNfse\Types;
 
 /**
- * Wire mirror of the `Company` entity (verified API contract).
+ * Wire mirror of the `Company` entity. Optional fields are absent from the JSON
+ * when they have no value, and read as null here. `setupGaps` lists what is
+ * still pending (`municipality_code`, `certificate`).
  */
 final readonly class Company
 {
@@ -21,17 +23,19 @@ final readonly class Company
         public ?string $tradeName,
         public string $taxId,
         public ?string $municipalReg,
+        public ?bool $sendMunicipalReg,
         public ?string $municipalityCode,
-        public string $taxRegime,
+        public ?string $defaultServiceCode,
+        public ?string $taxRegime,
         public bool $simpleNational,
         public ?string $specialRegime,
         public ?string $addressStreet,
         public ?string $addressNumber,
         public ?string $addressComplement,
         public ?string $addressDistrict,
-        public string $addressCity,
-        public string $addressState,
-        public string $addressZip,
+        public ?string $addressCity,
+        public ?string $addressState,
+        public ?string $addressZip,
         public string $fiscalSchemaVersion,
         public string $environment,
         public string $status,
@@ -55,17 +59,19 @@ final readonly class Company
             self::wireStr($data, 'tradeName'),
             self::wireStr($data, 'taxId') ?? '',
             self::wireStr($data, 'municipalReg'),
+            self::wireBool($data, 'sendMunicipalReg'),
             self::wireStr($data, 'municipalityCode'),
-            self::wireStr($data, 'taxRegime') ?? '',
+            self::wireStr($data, 'defaultServiceCode'),
+            self::wireStr($data, 'taxRegime'),
             self::wireBool($data, 'simpleNational') ?? false,
             self::wireStr($data, 'specialRegime'),
             self::wireStr($data, 'addressStreet'),
             self::wireStr($data, 'addressNumber'),
             self::wireStr($data, 'addressComplement'),
             self::wireStr($data, 'addressDistrict'),
-            self::wireStr($data, 'addressCity') ?? '',
-            self::wireStr($data, 'addressState') ?? '',
-            self::wireStr($data, 'addressZip') ?? '',
+            self::wireStr($data, 'addressCity'),
+            self::wireStr($data, 'addressState'),
+            self::wireStr($data, 'addressZip'),
             self::wireStr($data, 'fiscalSchemaVersion') ?? '',
             self::wireStr($data, 'environment') ?? '',
             self::wireStr($data, 'status') ?? '',

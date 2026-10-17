@@ -23,7 +23,6 @@ use Psr\Http\Message\ResponseInterface;
 final class Transport
 {
     public const UNWRAP_DATA = 'data';
-    public const UNWRAP_DATA_PROPS = 'data+props';
     public const UNWRAP_NONE = 'none';
 
     private const DEFAULT_TIMEOUT = 30.0;
@@ -369,16 +368,7 @@ final class Transport
 
         $envelope = is_array($value) && array_key_exists('data', $value) ? $value['data'] : null;
 
-        if ($mode === self::UNWRAP_DATA) {
-            return $envelope ?? null;
-        }
-
-        // UNWRAP_DATA_PROPS: the entity lives under `data.props`.
-        if (is_array($envelope) && array_key_exists('props', $envelope)) {
-            return $envelope['props'];
-        }
-
-        return null;
+        return $envelope ?? null;
     }
 
     private function toError(ResponseInterface $response): CorvoApiError

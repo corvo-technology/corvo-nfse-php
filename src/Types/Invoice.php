@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace CorvoNfse\Types;
 
 /**
- * Wire mirror of the `Invoice` entity (verified API contract).
+ * Wire mirror of the `Invoice` entity.
  *
  * Snapshot fields (`emailSnapshot`, `customerSnapshot`, `serviceSnapshot`,
  * `taxSnapshot`) are passed through as raw arrays, exactly as the server
@@ -61,6 +61,8 @@ final readonly class Invoice
         public string $documentsStatus,
         public ?string $emailStatus,
         public string $stage,
+        /** When a scheduled invoice is released (ISO), or null for an immediate one. */
+        public ?string $scheduledFor,
     ) {
     }
 
@@ -105,6 +107,7 @@ final readonly class Invoice
             self::wireStr($data, 'documentsStatus') ?? '',
             self::wireStr($data, 'emailStatus'),
             self::wireStr($data, 'stage') ?? '',
+            self::wireStr($data, 'scheduledFor'),
         );
     }
 }

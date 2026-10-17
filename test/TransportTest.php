@@ -46,18 +46,6 @@ final class TransportTest extends TestCase
         self::assertSame(['amount' => 10], json_decode((string) $request->getBody(), true));
     }
 
-    public function testUnwrapsDataPropsEnvelope(): void
-    {
-        [$transport] = MockApi::transport([
-            MockApi::json(['data' => ['props' => ['id' => 'inv_1', 'status' => 'authorized']]]),
-        ]);
-
-        $result = $transport->request('GET', '/invoices/inv_1', unwrap: Transport::UNWRAP_DATA_PROPS);
-
-        self::assertNull($result->error);
-        self::assertSame(['id' => 'inv_1', 'status' => 'authorized'], $result->data);
-    }
-
     public function testUnwrapNoneReturnsTheWholeBody(): void
     {
         [$transport] = MockApi::transport([

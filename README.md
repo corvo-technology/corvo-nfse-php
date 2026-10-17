@@ -1,15 +1,14 @@
 # corvo-nfse
 
-**The PHP SDK for the Corvo NFS-e API — result-style errors, cursor pagination you don't have to think about, and webhook signatures that verify in one call.**
+**The PHP SDK for the [Corvo](https://corvo.tech) NFS-e API.** Register companies, calculate taxes, issue Brazilian service invoices (NFS-e), follow them by webhook and download the PDF and XML, from PHP 8.2+.
 
-Issue, list, download, and reconcile Brazilian electronic service invoices (NFS-e) from any PHP 8.2+ app. Built on Guzzle 7, fully typed (PSR-4, `phpstan` level 9 clean), library only — no CLI.
+- **Result-style errors.** API, network and timeout failures return `new Result(null, $error)`: a `CorvoApiError` carrying the server's stable `code`, the HTTP `status`, the `requestId`, field-level `details` and `retryAfter`. Throw `$result->error` yourself if you prefer exceptions.
+- **Pagination built in.** Every list returns a `Result` wrapping `{data, pagination}`, and `iterate()` is a generator that walks all pages.
+- **Safe retries.** Issuing an invoice and sending an email accept an idempotency key.
+- **Webhook signature check** in constant time.
+- Built on Guzzle 7, `phpstan` level 9 clean. Library only, no CLI.
 
-## Why corvo-nfse
-
-- **Errors that never throw.** API, network, and timeout failures return `new Result(null, $error)` — a `CorvoApiError` carrying the server's stable `code`, HTTP `status`, `requestId`, field-level `details`, and `retryAfter`. Throw `$result->error` yourself if you prefer exceptions.
-- **Self-hosted first.** Point it at your own Corvo install; the public default `https://api.corvo.tech` only applies when you don't.
-- **Pagination you don't have to think about.** Every list returns `Result` wrapping `{data, pagination}` with an opaque cursor. Want every page? `foreach ($corvo->invoices->iterate(...) as $invoice)` walks them for you.
-- **Fully typed.** Readonly wire types mirror the verified API contract; request bodies keep the server's camelCase keys untouched.
+Full API reference: <https://corvo.tech/en/api-docs>.
 
 ## Install
 
@@ -21,6 +20,8 @@ Requires PHP >= 8.2 and Guzzle 7 (installed automatically).
 
 ## Quickstart
 
+Start with a `corvo_test_...` key: invoices issued with it have no fiscal value.
+
 ```php
 <?php
 
@@ -29,8 +30,8 @@ require __DIR__ . '/vendor/autoload.php';
 use CorvoNfse\Client;
 
 $corvo = new Client([
-    'api_key' => 'corvo_live_xxx',          // or set CORVO_API_KEY
-    'base_url' => 'https://api.corvo.tech', // or CORVO_BASE_URL for your self-hosted install
+    'api_key' => 'corvo_test_...', // or set CORVO_API_KEY
+    // 'base_url' => 'https://api.corvo.tech', // default; also read from CORVO_BASE_URL
 ]);
 
 $result = $corvo->companies->list(limit: 10);
@@ -42,85 +43,98 @@ if ($result->error !== null) {
     foreach ($result->data['data'] as $company) {
         echo $company['legalName'], PHP_EOL;
     }
-    echo $result->data['pagination']['nextCursor'] ?? 'last page', PHP_EOL;
 }
 ```
 
-Errors are values, not exceptions:
-
-```php
-use CorvoNfse\Result;
-
-$result = $corvo->companies->get('invalid');
-
-if ($result->error !== null) {
-    echo $result->error->status;   // 404
-    echo $result->error->code;     // not_found (stable server code)
-    throw $result->error;          // optional: CorvoApiError extends \Exception
-}
-```
-
-The single documented exception: `iterate()` raises `CorvoNfse\CorvoApiError` on a **page** failure (a generator has no channel to return a `Result`). Wrap it in `try/catch` if the input is untrusted:
+`new Client()` is the only call that throws: it raises `InvalidArgumentException` when no API key is configured or the base URL is invalid. The other exception is `iterate()`, which raises `CorvoApiError` when a page fails (a generator has no channel to return a `Result`):
 
 ```php
 try {
     foreach ($corvo->invoices->iterate(['companyId' => $companyId]) as $invoice) {
-        // ...
+        echo $invoice['nfseNumber'], PHP_EOL;
     }
 } catch (\CorvoNfse\CorvoApiError $error) {
     echo $error->code, ' ', $error->requestId;
 }
 ```
 
-## Issue and download an NFS-e
+### Register a company
+
+```php
+$company = $corvo->companies->create([
+    'legalName' => 'Empresa Exemplo Ltda',
+    'taxId' => '11222333000181',
+    'taxRegime' => 'Simples Nacional', // 'MEI' | 'Simples Nacional' | 'Lucro Presumido' | 'Lucro Real'
+    'municipalityCode' => '3550308',   // IBGE code, 7 digits
+    'defaultServiceCode' => '010101',  // optional: used when an invoice omits service.code
+]);
+```
+
+In `live`, also upload the A1 certificate (below). The company is ready when `status` is `ready` and `setupGaps` is empty.
+
+```php
+$corvo->certificates->upload(
+    companyId: $companyId,
+    file: file_get_contents('/secrets/certificado.p12'),
+    password: 'segredo',
+    fileName: 'certificado.p12', // optional
+);
+```
+
+### Estimate the taxes before issuing
+
+Nothing is issued, stored or charged.
+
+```php
+$estimate = $corvo->invoices->calculate([
+    'companyTaxId' => '11222333000181',
+    'service' => ['description' => 'Consultoria'],
+    'amount' => 1500,
+    'competenceDate' => '2026-10-16',
+]);
+// $estimate->data['status'] is 'ready' or 'blocked': a fiscal gap is data, not an error.
+```
+
+### Issue an invoice
+
+Issuing is asynchronous: a successful call means the request was accepted, not that the invoice is authorized. Follow the status with `invoices->get()` or webhooks.
 
 ```php
 $result = $corvo->invoices->create(
     [
-        'companyId' => $companyId,
-        'customer' => [
-            'name' => 'Cliente Exemplo LTDA',
-            'taxId' => '52998224725',
-            'email' => 'cliente@example.com',
-        ],
-        'service' => [
-            'code' => '01.01.01',
-            'municipalityCode' => '3170206',
-            'description' => 'Serviços de consultoria',
-        ],
-        'amount' => 1500.00,
-        'competenceDate' => '2026-10-12',
+        'companyTaxId' => '11222333000181', // or 'companyId'
+        // 'customer' is optional; when sent, 'taxId' (CPF or CNPJ) is required.
+        'customer' => ['taxId' => '52998224725', 'name' => 'Cliente', 'email' => 'cliente@example.com'],
+        'service' => ['description' => 'Consultoria'], // code and city default to the company's
+        'amount' => 150.50,
+        'competenceDate' => '2026-10-16',
+        'options' => ['email' => ['send' => true]],
     ],
-    idempotencyKey: 'pedido_42', // sent as Idempotency-Key — safe to retry
+    idempotencyKey: 'pedido_42', // sent as Idempotency-Key: the same key never issues twice
 );
 
 if ($result->error === null) {
-    echo $result->data['id']; // invoice id (unwrapped from data.props)
-}
-
-// Raw bytes come back as a CorvoNfse\DownloadedFile
-$pdf = $corvo->invoices->pdf($result->data['id']);
-if ($pdf->error === null) {
-    file_put_contents('nfse.pdf', $pdf->data->content);
-    // $pdf->data->mimeType === 'application/pdf'
-    // $pdf->data->fileName === 'nfse-12345.pdf'
+    echo $result->data['id'];
 }
 ```
 
-## Certificate upload
+Use `'options' => ['type' => 'SCHEDULE']` with a future `competenceDate` to schedule the issuance. Request bodies and responses keep the server's camelCase keys.
+
+### Download the PDF or XML
+
+The invoice must be `authorized` and have its documents ready.
 
 ```php
-$upload = $corvo->certificates->upload(
-    companyId: $companyId,
-    file: file_get_contents('/secrets/certificado.p12'),
-    password: 'segredo',
-    fileName: 'certificado.p12', // optional, defaults to certificate.p12
-);
+$pdf = $corvo->invoices->pdf($invoiceId);
+if ($pdf->error === null) {
+    file_put_contents('nfse.pdf', $pdf->data->content);
+    // also $pdf->data->mimeType and $pdf->data->fileName
+}
 ```
 
-## Verify webhook signatures
+### Verify webhook signatures
 
-Always verify against the **raw** request body — re-serialized JSON will never match:
+Always verify against the raw request body: re-serialized JSON will never match.
 
 ```php
 use CorvoNfse\Webhooks;
@@ -133,44 +147,25 @@ if (!Webhooks::verifySignature($rawBody, $signature, $webhookSecret)) {
     exit;
 }
 
-$event = json_decode($rawBody, true);
+$event = json_decode($rawBody, true); // deduplicate by $event['id']: the same event can arrive twice
 ```
 
-`Webhooks::WEBHOOK_EVENTS` lists all 9 subscribable events (`nfse.invoice.authorized`, `webhook.test`, ...).
-
-## Pagination and iteration
-
-```php
-$page = $corvo->companies->list(limit: 50);
-$page->data['pagination']; // ['limit' => 50, 'hasMore' => true, 'nextCursor' => 'eyJ...']
-
-// Or forget about cursors entirely:
-foreach ($corvo->credits->iterateHistory(['limit' => 100]) as $transaction) {
-    // ...
-}
-```
-
-`iterate()` is a PHP generator that follows `hasMore`/`nextCursor` for you.
+`Webhooks::WEBHOOK_EVENTS` lists the 9 events you can subscribe to. The `webhook.test` event is only sent by `webhooks->test()`.
 
 ## Errors
 
-`CorvoNfse\CorvoApiError` mirrors the shared SDK contract:
+`CorvoNfse\CorvoApiError` fields:
 
 | Field | Type | Meaning |
 | --- | --- | --- |
-| `status` | `int` | HTTP status (`0` for network/timeout failures) |
-| `code` | `string` | Stable server code, or `http_<status>`, `invalid_json`, `network_error`, `timeout` |
+| `status` | `int` | HTTP status (`0` for network and timeout failures) |
+| `code` | `string` | The API's `ERROR_*` code, or `http_<status>`, `invalid_json`, `network_error`, `timeout` |
 | `getMessage()` | `string` | Human-readable message |
 | `details` | `array` | Field-level validation details (`field`, `code`, `message`) |
 | `requestId` | `?string` | `requestId` body field or `X-Request-Id` header |
-| `retryAfter` | `?int` | Seconds from the body or the `Retry-After` header |
+| `retryAfter` | `?int` | Seconds from the body or the `Retry-After` header (on `429`) |
 
-| Result data | Meaning |
-| --- | --- |
-| decoded array | success |
-| `null` | deletion / `204 No Content` / empty body — or failure (check `->error`) |
-
-Wire format is passed through unchanged — no re-casing of server fields.
+`Result->data` is `null` for a deletion (`204`) or an empty body, and also on failure: check `->error`.
 
 ## Resources
 
@@ -180,60 +175,45 @@ Every method returns `CorvoNfse\Result`.
 | --- | --- |
 | `companies` | `create`, `get`, `update`, `remove`, `list`, `iterate` |
 | `certificates` | `upload`, `list`, `remove` |
-| `invoices` | `create`, `get`, `list`, `iterate`, `events`, `pdf`, `xml`, `downloadUrl`, `sendEmail` |
+| `invoices` | `create`, `calculate`, `get`, `list`, `iterate`, `events`, `pdf`, `xml`, `downloadUrl`, `sendEmail` |
 | `webhooks` | `list`, `iterate`, `create`, `remove`, `test` |
 | `webhooks->deliveries` | `list`, `iterate`, `stats`, `retry` |
 | `credits` | `balance`, `plans`, `history`, `iterateHistory` |
 | `billing` | `plan`, `usage` |
-| `health` | `live`, `ready` (2 public health checks, no `{data}` envelope) |
+| `plans` | `list`, `get`, `quote` (public price catalog) |
+| `health` | `live`, `ready` |
+
+Changing plans and the billing portal exist only in the dashboard, so they are not in the SDK.
+
+Readonly wire types live in `CorvoNfse\Types` (`Company`, `Invoice`, `Webhook`, `QuotaStatus`, ...). Resources return the raw decoded payload; call `Type::fromArray($result->data)` for the typed view.
 
 ## Configuration
 
 | Option | Type | Default | Notes |
 | --- | --- | --- | --- |
-| `api_key` | `string` | `getenv('CORVO_API_KEY')` | Required. Sent as `X-API-Key` (never `Bearer`) |
-| `base_url` | `string` | `getenv('CORVO_BASE_URL')` ?? `https://api.corvo.tech` | Self-hosted installs win |
-| `prefix` | `string` | `v1` | For custom `API_PREFIX` deployments |
+| `api_key` | `string` | `getenv('CORVO_API_KEY')` | Required. Sent as `X-API-Key` |
+| `base_url` | `string` | `getenv('CORVO_BASE_URL')`, then `https://api.corvo.tech` | |
+| `prefix` | `string` | `v1` | |
 | `timeout` | `float` | `30.0` | Seconds |
-| `allow_insecure_http` | `bool` | `false` | `http://` only allowed for loopback/private hosts unless enabled |
-| `http_client` | `GuzzleHttp\ClientInterface` | built-in Guzzle 7 client | Bring your own handler stack / mocks |
+| `allow_insecure_http` | `bool` | `false` | `http://` is only accepted for loopback and private hosts unless enabled |
+| `http_client` | `GuzzleHttp\ClientInterface` | built-in Guzzle client | Bring your own handler stack or mock |
 
-Readonly wire types live in `CorvoNfse\Types` (`Company`, `Invoice`, `Webhook`, `QuotaStatus`, ...). Resources return the raw decoded payload; call `Type::fromArray($result->data)` whenever you want the typed view.
+## Behavior
 
-## The contract (in-depth)
-
-Nine SDKs, one behavior. This SDK implements the same analysis as every other Corvo SDK, mirrored from the canonical Node SDK.
-
-**Auth.** Every request carries `X-API-Key` (never `Authorization: Bearer`). Keys are scoped per tenant; the base URL defaults to `https://api.corvo.tech` and is overridable for self-hosted deployments. All routes live under the `v1` prefix.
-
-**Response envelope.** Endpoints return one of three shapes, and the SDK unwraps them idiomatically: `{ "data": ... }` (single resource), `{ "data": { "props": ... } }` (resource behind a `props` wrapper), or no envelope (health checks, raw downloads). List endpoints return `{ "data": [...], "pagination": { "limit", "hasMore", "nextCursor" } }`. A `204 No Content` maps to an empty result.
-
-**Errors never throw.** Network failures, timeouts, non-2xx responses, and malformed JSON all resolve to a typed error carrying `status`, `code`, `message`, `details`, `requestId`, and `retryAfter` — returned alongside (or as) the result, never raised. `code` falls back to `http_<status>` when the body doesn't carry one; transport-level failures use `network_error` / `timeout` / `invalid_json`. The only operation that raises is the `iterate` helper, and only on the first page's failure.
-
-**Pagination.** List endpoints are cursor-paginated. The SDK exposes both a `list` (single page) and an `iterate`/stream helper that walks `nextCursor` until `hasMore` is false.
-
-**Idempotency.** Invoice create and send-email accept an idempotency key, sent as the `Idempotency-Key` header so retries are safe.
-
-**Webhooks.** Deliveries are signed with HMAC-SHA256 over the raw body. The SDK exposes a timing-safe `verifySignature(rawBody, header, secret)`.
-
-**Surface.** Exactly 28 operations across companies, certificates, invoices, webhooks (incl. nested deliveries), credits, and billing — plus `health/live` and `health/ready`.
+- **Auth.** Every request sends `X-API-Key`. Keys are `corvo_test_...` or `corvo_live_...` and belong to one account and environment; the key decides the environment.
+- **Responses.** Single resources and list items come back as the API's `data`; lists add `pagination`.
+- **Idempotency.** `invoices->create` and `invoices->sendEmail` accept an idempotency key.
 
 ## Development
 
 ```bash
 composer install
-vendor/bin/phpunit    # unit + HMAC vector tests (contract tests skip without env)
-vendor/bin/phpstan    # level 9
+vendor/bin/phpunit    # unit tests; the contract test skips without env
+vendor/bin/phpstan analyse
 ```
 
-Contract tests run only when `CORVO_API_KEY` and `CORVO_BASE_URL` are set:
-
-```bash
-CORVO_API_KEY=corvo_test_xxx CORVO_BASE_URL=http://localhost:4000 vendor/bin/phpunit
-```
-
-Looking for a CLI? It ships with the Node SDK (`corvo-nfse-node`).
+The contract test runs only when `CORVO_API_KEY` and `CORVO_BASE_URL` point to a reachable instance.
 
 ## License
 
-MIT © Corvo Technology. See [LICENSE](LICENSE).
+MIT, see [LICENSE](LICENSE).
