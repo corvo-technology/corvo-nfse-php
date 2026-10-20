@@ -5,7 +5,10 @@ declare(strict_types=1);
 namespace CorvoNfse\Tests\Resources;
 
 use CorvoNfse\DownloadedFile;
+use CorvoNfse\CorvoApiError;
 use CorvoNfse\Tests\Support\MockApi;
+use CorvoNfse\Types\CancellationReason;
+use CorvoNfse\Types\Invoice;
 use PHPUnit\Framework\TestCase;
 
 final class InvoicesTest extends TestCase
@@ -197,5 +200,184 @@ final class InvoicesTest extends TestCase
         self::assertSame('http://localhost:4000/v1/invoices/inv_1/email', (string) $request->getUri());
         self::assertSame('mail_1', $request->getHeaderLine('Idempotency-Key'));
         self::assertSame('', $request->getHeaderLine('Content-Type'));
+    }
+
+    public function testCancelPostsReasonAndDescriptionAndReturnsTheCancelledInvoice(): void
+    {
+        [$client, $mock] = MockApi::client([
+            MockApi::json(['data' => [
+                'status' => 'cancelled',
+                'cancellationReason' => 'issue_error',
+                'cancellationDescription' => 'Valor emitido incorretamente',
+                'cancelledAt' => '2026-10-20T10:00:00.000Z',
+                'cancellationRequestedAt' => '2026-10-20T10:00:00.000Z',
+            ] + self::INVOICE]),
+        ]);
+
+        $result = $client->invoices->cancel(
+            'inv_1',
+            CancellationReason::IssueError,
+            'Valor emitido incorretamente',
+        );
+
+        self::assertNull($result->error);
+        self::assertSame('cancelled', $result->data['status']);
+        self::assertSame('2026-10-20T10:00:00.000Z', $result->data['cancelledAt']);
+
+        $request = $mock->getLastRequest();
+        self::assertNotNull($request);
+        self::assertSame('POST', $request->getMethod());
+        self::assertSame('http://localhost:4000/v1/invoices/inv_1/cancel', (string) $request->getUri());
+        self::assertSame('application/json', $request->getHeaderLine('Content-Type'));
+        self::assertSame(
+            ['reason' => 'issue_error', 'description' => 'Valor emitido incorretamente'],
+            json_decode((string) $request->getBody(), true),
+        );
+    }
+
+    public function testCancelOmitsDescriptionWhenNullAndAcceptsAStringReason(): void
+    {
+        [$client, $mock] = MockApi::client([
+            MockApi::json(['data' => ['status' => 'cancelled', 'cancellationReason' => 'other'] + self::INVOICE]),
+        ]);
+
+        $result = $client->invoices->cancel('inv/1', 'other');
+
+        self::assertNull($result->error);
+
+        $request = $mock->getLastRequest();
+        self::assertNotNull($request);
+        self::assertSame('http://localhost:4000/v1/invoices/inv%2F1/cancel', (string) $request->getUri());
+        self::assertSame(['reason' => 'other'], json_decode((string) $request->getBody(), true));
+    }
+
+    public function testCancelAcceptedWith202ReturnsTheCancellingInvoice(): void
+    {
+        [$client] = MockApi::client([
+            MockApi::json(['data' => [
+                'status' => 'cancelling',
+                'cancellationReason' => 'service_not_provided',
+                'cancellationDescription' => 'Servico nao foi prestado ao cliente',
+                'cancelledAt' => null,
+                'cancellationRequestedAt' => '2026-10-20T10:00:00.000Z',
+            ] + self::INVOICE], 202),
+        ]);
+
+        $result = $client->invoices->cancel(
+            'inv_1',
+            CancellationReason::ServiceNotProvided,
+            'Servico nao foi prestado ao cliente',
+        );
+
+        self::assertNull($result->error);
+        self::assertSame('cancelling', $result->data['status']);
+
+        $invoice = Invoice::fromArray($result->data);
+        self::assertSame('cancelling', $invoice->status);
+        self::assertSame('service_not_provided', $invoice->cancellationReason);
+        self::assertSame(CancellationReason::ServiceNotProvided, CancellationReason::tryFrom((string) $invoice->cancellationReason));
+        self::assertNull($invoice->cancelledAt);
+        self::assertSame('2026-10-20T10:00:00.000Z', $invoice->cancellationRequestedAt);
+    }
+
+    public function testCancelNotCancellableSurfacesTheApiError(): void
+    {
+        [$client] = MockApi::client([
+            MockApi::json([
+                'code' => 'ERROR_INVOICE_NOT_CANCELLABLE',
+                'message' => 'Invoice cannot be cancelled in its current status',
+                'requestId' => 'req_1',
+            ], 409),
+        ]);
+
+        $result = $client->invoices->cancel('inv_1', CancellationReason::Other, 'Cancelamento solicitado pelo cliente');
+
+        self::assertNull($result->data);
+        self::assertInstanceOf(CorvoApiError::class, $result->error);
+        self::assertSame(409, $result->error->status);
+        self::assertSame('ERROR_INVOICE_NOT_CANCELLABLE', $result->error->code);
+        self::assertSame('req_1', $result->error->requestId);
+    }
+
+    public function testCancelInvalidDescriptionSurfacesThe422Error(): void
+    {
+        [$client] = MockApi::client([
+            MockApi::json([
+                'code' => 'ERROR_VALIDATION',
+                'message' => 'Validation failed',
+                'details' => [['field' => 'description', 'code' => 'too_short', 'message' => 'min 15']],
+            ], 422),
+        ]);
+
+        $result = $client->invoices->cancel('inv_1', CancellationReason::Other, 'curta');
+
+        self::assertInstanceOf(CorvoApiError::class, $result->error);
+        self::assertSame(422, $result->error->status);
+        self::assertSame('description', $result->error->details[0]['field']);
+    }
+
+    public function testGetParsesACancelledInvoice(): void
+    {
+        [$client] = MockApi::client([
+            MockApi::json(['data' => [
+                'status' => 'cancelled',
+                'cancellationReason' => 'issue_error',
+                'cancellationDescription' => 'Valor emitido incorretamente',
+                'cancelledAt' => '2026-10-20T10:05:00.000Z',
+                'cancellationRequestedAt' => '2026-10-20T10:00:00.000Z',
+            ] + self::INVOICE]),
+        ]);
+
+        $result = $client->invoices->get('inv_1');
+
+        self::assertNull($result->error);
+        $invoice = Invoice::fromArray($result->data);
+        self::assertSame('cancelled', $invoice->status);
+        self::assertSame('issue_error', $invoice->cancellationReason);
+        self::assertSame('Valor emitido incorretamente', $invoice->cancellationDescription);
+        self::assertSame('2026-10-20T10:05:00.000Z', $invoice->cancelledAt);
+        self::assertSame('2026-10-20T10:00:00.000Z', $invoice->cancellationRequestedAt);
+    }
+
+    public function testGetParsesACancellingInvoice(): void
+    {
+        [$client] = MockApi::client([
+            MockApi::json(['data' => [
+                'status' => 'cancelling',
+                'cancellationReason' => 'other',
+                'cancellationDescription' => 'Cancelamento solicitado pelo cliente',
+                'cancelledAt' => null,
+                'cancellationRequestedAt' => '2026-10-20T10:00:00.000Z',
+            ] + self::INVOICE]),
+        ]);
+
+        $result = $client->invoices->get('inv_1');
+
+        self::assertNull($result->error);
+        $invoice = Invoice::fromArray($result->data);
+        self::assertSame('cancelling', $invoice->status);
+        self::assertSame('other', $invoice->cancellationReason);
+        self::assertSame('Cancelamento solicitado pelo cliente', $invoice->cancellationDescription);
+        self::assertNull($invoice->cancelledAt);
+        self::assertSame('2026-10-20T10:00:00.000Z', $invoice->cancellationRequestedAt);
+    }
+
+    public function testInvoiceWithoutCancellationFieldsDefaultsThemToNull(): void
+    {
+        $invoice = Invoice::fromArray(self::INVOICE);
+
+        self::assertSame('authorized', $invoice->status);
+        self::assertNull($invoice->cancellationReason);
+        self::assertNull($invoice->cancellationDescription);
+        self::assertNull($invoice->cancelledAt);
+        self::assertNull($invoice->cancellationRequestedAt);
+    }
+
+    public function testCancellationReasonValuesMatchTheApi(): void
+    {
+        self::assertSame(
+            ['issue_error', 'service_not_provided', 'other'],
+            array_map(static fn (CancellationReason $r): string => $r->value, CancellationReason::cases()),
+        );
     }
 }

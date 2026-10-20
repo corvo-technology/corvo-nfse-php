@@ -120,6 +120,45 @@ if ($result->error === null) {
 
 Use `'options' => ['type' => 'SCHEDULE']` with a future `competenceDate` to schedule the issuance. Request bodies and responses keep the server's camelCase keys.
 
+### Cancel an invoice
+
+Pass a reason (`CancellationReason::IssueError`, `ServiceNotProvided` or `Other`, or the raw string `issue_error`, `service_not_provided`, `other`) and a description. The description (up to 255 characters) is required, with at least 15 characters, for `authorized` and `processing` invoices, and optional for `queued` ones. `cancel()` returns the updated invoice, like `get()`.
+
+```php
+use CorvoNfse\Types\CancellationReason;
+use CorvoNfse\Types\Invoice;
+
+$result = $corvo->invoices->cancel(
+    $invoiceId,
+    CancellationReason::IssueError,
+    'Valor emitido incorretamente',
+);
+
+if ($result->error !== null) {
+    // 409 ERROR_INVOICE_NOT_CANCELLABLE: retry_pending, reconciliation_required or manual_review
+    // 422: invalid description
+    echo $result->error->code;
+}
+
+// Later, check the outcome:
+$invoice = Invoice::fromArray($corvo->invoices->get($invoiceId)->data);
+
+match ($invoice->status) {
+    'cancelled' => print("Cancelled at {$invoice->cancelledAt}\n"),
+    'cancelling' => print("Sefin is processing the cancellation\n"),
+    'processing' => print("Still being issued; cancels once authorized\n"), // cancellationRequestedAt is set
+    'authorized' => print("Sefin rejected it: {$invoice->lastErrorCode} {$invoice->lastErrorMessage}\n"),
+    default => null,
+};
+```
+
+- A `queued` invoice is cancelled at once (`200`, `status: "cancelled"`).
+- An `authorized` invoice is cancelled at the Sefin (`202`, `status: "cancelling"`). It ends `cancelled`, or goes back to `authorized` with `lastErrorCode` and `lastErrorMessage` if the Sefin rejects it. Cancelling an issued NFS-e does not refund the credit.
+- An invoice still being issued (`202`) stays `processing` with `cancellationRequestedAt` set and is cancelled once it is authorized.
+- Calling `cancel()` again returns the current state: the first request wins.
+
+The `Invoice` type exposes `cancellationReason`, `cancellationDescription`, `cancelledAt` and `cancellationRequestedAt` (all nullable). The webhooks `nfse.invoice.cancelled` and `nfse.invoice.cancellation_rejected` report the outcome.
+
 ### Download the PDF or XML
 
 The invoice must be `authorized` and have its documents ready.
@@ -150,7 +189,7 @@ if (!Webhooks::verifySignature($rawBody, $signature, $webhookSecret)) {
 $event = json_decode($rawBody, true); // deduplicate by $event['id']: the same event can arrive twice
 ```
 
-`Webhooks::WEBHOOK_EVENTS` lists the 9 events you can subscribe to. The `webhook.test` event is only sent by `webhooks->test()`.
+`Webhooks::WEBHOOK_EVENTS` lists the 11 events you can subscribe to. The `webhook.test` event is only sent by `webhooks->test()`.
 
 ## Errors
 
@@ -175,7 +214,7 @@ Every method returns `CorvoNfse\Result`.
 | --- | --- |
 | `companies` | `create`, `get`, `update`, `remove`, `list`, `iterate` |
 | `certificates` | `upload`, `list`, `remove` |
-| `invoices` | `create`, `calculate`, `get`, `list`, `iterate`, `events`, `pdf`, `xml`, `downloadUrl`, `sendEmail` |
+| `invoices` | `create`, `calculate`, `get`, `list`, `iterate`, `events`, `cancel`, `pdf`, `xml`, `downloadUrl`, `sendEmail` |
 | `webhooks` | `list`, `iterate`, `create`, `remove`, `test` |
 | `webhooks->deliveries` | `list`, `iterate`, `stats`, `retry` |
 | `credits` | `balance`, `plans`, `history`, `iterateHistory` |

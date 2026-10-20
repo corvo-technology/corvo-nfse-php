@@ -6,10 +6,11 @@ namespace CorvoNfse\Resources;
 
 use CorvoNfse\Result;
 use CorvoNfse\Transport;
+use CorvoNfse\Types\CancellationReason;
 use InvalidArgumentException;
 
 /**
- * NFS-e invoices: issue, read, list, download documents and send emails.
+ * NFS-e invoices: issue, read, list, cancel, download documents and send emails.
  *
  * Resources come straight in the response `data`; lists add `pagination`.
  */
@@ -166,6 +167,44 @@ final class Invoices
             'POST',
             '/invoices/' . rawurlencode($id) . '/email',
             idempotencyKey: $idempotencyKey,
+        );
+    }
+
+    /**
+     * POST /v1/invoices/{id}/cancel — cancel an invoice.
+     *
+     * Returns the updated invoice, like {@see get()}:
+     *   - `200`: a queued invoice is cancelled at once (`status: "cancelled"`, `cancelledAt` set);
+     *   - `202`: an authorized invoice is being cancelled at the Sefin (`status: "cancelling"`),
+     *     or an invoice still being issued keeps `status: "processing"` with
+     *     `cancellationRequestedAt` set and is cancelled once authorized.
+     *
+     * Follow the outcome with {@see get()} or the `nfse.invoice.cancelled` /
+     * `nfse.invoice.cancellation_rejected` webhooks: `cancelled` is final; if the Sefin
+     * rejects it the invoice goes back to `authorized` with `lastErrorCode` /
+     * `lastErrorMessage`. Repeating the call returns the current state (the first request wins).
+     *
+     * Fails with `409 ERROR_INVOICE_NOT_CANCELLABLE` for `retry_pending`,
+     * `reconciliation_required` and `manual_review` invoices, and with `422` for an
+     * invalid description.
+     *
+     * @param CancellationReason|string $reason `issue_error`, `service_not_provided` or `other`.
+     * @param string|null $description up to 255 characters; required (15–255) for authorized
+     *        and processing invoices, optional for queued ones. Omitted from the body when null.
+     *
+     * @return Result<mixed>
+     */
+    public function cancel(string $id, CancellationReason|string $reason, ?string $description = null): Result
+    {
+        $body = ['reason' => $reason instanceof CancellationReason ? $reason->value : $reason];
+        if ($description !== null) {
+            $body['description'] = $description;
+        }
+
+        return $this->http->request(
+            'POST',
+            '/invoices/' . rawurlencode($id) . '/cancel',
+            json: $body,
         );
     }
 

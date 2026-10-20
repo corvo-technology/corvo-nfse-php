@@ -31,6 +31,11 @@ final readonly class Invoice
         public array $emailSnapshot,
         public ?string $externalId,
         public ?string $idempotencyKey,
+        /**
+         * `queued`, `processing`, `authorized`, `rejected`, `retry_pending`,
+         * `reconciliation_required`, `manual_review`, `failed`, `cancelling` or `cancelled`.
+         * Kept as a string so a status added by the server never breaks parsing.
+         */
         public string $status,
         /** @var array<mixed> */
         public array $customerSnapshot,
@@ -63,6 +68,13 @@ final readonly class Invoice
         public string $stage,
         /** When a scheduled invoice is released (ISO), or null for an immediate one. */
         public ?string $scheduledFor,
+        /** `issue_error`, `service_not_provided` or `other` (see {@see CancellationReason}), or null. */
+        public ?string $cancellationReason = null,
+        public ?string $cancellationDescription = null,
+        /** When the invoice was cancelled (ISO), or null. */
+        public ?string $cancelledAt = null,
+        /** When the cancellation was requested (ISO), or null. */
+        public ?string $cancellationRequestedAt = null,
     ) {
     }
 
@@ -108,6 +120,10 @@ final readonly class Invoice
             self::wireStr($data, 'emailStatus'),
             self::wireStr($data, 'stage') ?? '',
             self::wireStr($data, 'scheduledFor'),
+            self::wireStr($data, 'cancellationReason'),
+            self::wireStr($data, 'cancellationDescription'),
+            self::wireStr($data, 'cancelledAt'),
+            self::wireStr($data, 'cancellationRequestedAt'),
         );
     }
 }
