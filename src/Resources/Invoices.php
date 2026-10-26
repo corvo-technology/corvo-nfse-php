@@ -26,6 +26,9 @@ final class Invoices
      *        company with `companyId` or `companyTaxId`; `customer` is optional (when sent,
      *        `taxId` is required); `service.code`, `service.municipalityCode` and
      *        `service.description` are optional; `options.type` is `IMMEDIATE` or `SCHEDULE`.
+     *        `discount` is the unconditional discount in BRL (0 up to `amount`); `deduction` is the
+     *        ISS base deduction declared by the issuer (greater than 0 and less than `amount` minus
+     *        `discount`; the invoice is still issued for the full `amount`).
      * @param string|null $idempotencyKey safe retry key; sent as `Idempotency-Key`.
      *
      * @return Result<mixed>
@@ -38,6 +41,26 @@ final class Invoices
             json: $params,
             idempotencyKey: $idempotencyKey,
         );
+    }
+
+    /**
+     * POST /v1/invoices/batches — issue 1 to 50 invoices in one call, for one company or several.
+     *
+     * Items are checked one by one: valid ones are saved together, invalid ones come back
+     * `rejected` and are not saved. Match `results[].index` to the item you sent, fix only the
+     * rejected ones and send them again. Send an `idempotencyKey` per item: the `Idempotency-Key`
+     * header is not used by this route.
+     *
+     * @param list<array<string, mixed>> $invoices items with the fields of {@see create()} plus an
+     *        optional `idempotencyKey` (up to 255 characters).
+     *
+     * @return Result<mixed> array{total: int, accepted: int, rejected: int, results: list<array{
+     *         index: int, status: string, replayed?: true, invoice?: array<string, mixed>,
+     *         error?: array{code: string, message: string, details?: mixed}}>}
+     */
+    public function createBatch(array $invoices): Result
+    {
+        return $this->http->request('POST', '/invoices/batches', json: ['invoices' => $invoices]);
     }
 
     /**
@@ -167,6 +190,30 @@ final class Invoices
             '/invoices/' . rawurlencode($id) . '/email',
             idempotencyKey: $idempotencyKey,
         );
+    }
+
+    /**
+     * POST /v1/invoices/{id}/cancel
+     *
+     * A queued invoice is cancelled at once (`status: "cancelled"`); an authorized one moves to
+     * `cancelling` while the cancellation is processed, and a processing one stays `processing`
+     * with `cancellationRequestedAt` set. Call {@see get()} later: `cancelled` when done, or back
+     * to `authorized` with `lastErrorCode` when the cancellation was rejected.
+     *
+     * @param string $reason `issue_error`, `service_not_provided` or `other`.
+     * @param string|null $description 15 to 255 characters; required for an authorized or
+     *        processing invoice, optional for a queued one.
+     *
+     * @return Result<mixed>
+     */
+    public function cancel(string $id, string $reason, ?string $description = null): Result
+    {
+        $body = ['reason' => $reason];
+        if ($description !== null) {
+            $body['description'] = $description;
+        }
+
+        return $this->http->request('POST', '/invoices/' . rawurlencode($id) . '/cancel', json: $body);
     }
 
     /** @return \Closure(mixed): mixed */

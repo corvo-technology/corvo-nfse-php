@@ -24,6 +24,8 @@ final class Webhooks
         'nfse.invoice.email_sent',
         'nfse.invoice.email_failed',
         'nfse.invoice.fiscal_discrepancy',
+        'nfse.invoice.cancelled',
+        'nfse.invoice.cancellation_rejected',
     ];
 
     private function __construct()
