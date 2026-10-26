@@ -198,4 +198,91 @@ final class InvoicesTest extends TestCase
         self::assertSame('mail_1', $request->getHeaderLine('Idempotency-Key'));
         self::assertSame('', $request->getHeaderLine('Content-Type'));
     }
+
+    public function testCreateBatchPostsTheItemsWithoutAnIdempotencyKeyHeader(): void
+    {
+        [$client, $mock] = MockApi::client([
+            MockApi::json(['data' => [
+                'total' => 2,
+                'accepted' => 1,
+                'rejected' => 1,
+                'results' => [
+                    ['index' => 0, 'status' => 'accepted', 'replayed' => true, 'invoice' => self::INVOICE],
+                    ['index' => 1, 'status' => 'rejected', 'error' => [
+                        'code' => 'ERROR_VALIDATION',
+                        'message' => 'Request validation failed',
+                    ]],
+                ],
+            ]], 202),
+        ]);
+
+        $result = $client->invoices->createBatch([
+            [
+                'companyTaxId' => '11222333000181',
+                'idempotencyKey' => 'sheet-row-2',
+                'service' => ['description' => 'Consultoria'],
+                'amount' => 150.5,
+                'deduction' => 20,
+                'competenceDate' => '2026-10-01',
+            ],
+        ]);
+
+        self::assertNull($result->error);
+        self::assertSame(2, $result->data['total']);
+        self::assertTrue($result->data['results'][0]['replayed']);
+        self::assertSame('ERROR_VALIDATION', $result->data['results'][1]['error']['code']);
+
+        $request = $mock->getLastRequest();
+        self::assertNotNull($request);
+        self::assertSame('POST', $request->getMethod());
+        self::assertSame('http://localhost:4000/v1/invoices/batches', (string) $request->getUri());
+        self::assertFalse($request->hasHeader('Idempotency-Key'));
+        $body = json_decode((string) $request->getBody(), true);
+        self::assertSame('sheet-row-2', $body['invoices'][0]['idempotencyKey']);
+        self::assertSame(20, $body['invoices'][0]['deduction']);
+    }
+
+    public function testCancelPostsReasonAndDescription(): void
+    {
+        [$client, $mock] = MockApi::client([
+            MockApi::json(['data' => array_merge(self::INVOICE, ['status' => 'cancelling'])], 202),
+        ]);
+
+        $result = $client->invoices->cancel('inv_1', 'issue_error', 'Wrong amount on the invoice');
+
+        self::assertNull($result->error);
+        self::assertSame('cancelling', $result->data['status']);
+        $request = $mock->getLastRequest();
+        self::assertNotNull($request);
+        self::assertSame('http://localhost:4000/v1/invoices/inv_1/cancel', (string) $request->getUri());
+        self::assertSame(
+            ['reason' => 'issue_error', 'description' => 'Wrong amount on the invoice'],
+            json_decode((string) $request->getBody(), true),
+        );
+    }
+
+    public function testCancelOmitsTheDescriptionWhenNotGiven(): void
+    {
+        [$client, $mock] = MockApi::client([MockApi::json(['data' => self::INVOICE])]);
+
+        $client->invoices->cancel('inv_1', 'other');
+
+        $request = $mock->getLastRequest();
+        self::assertNotNull($request);
+        self::assertSame(['reason' => 'other'], json_decode((string) $request->getBody(), true));
+    }
+
+    public function testInvoiceTypeReadsDeductionAndCancellationFields(): void
+    {
+        $invoice = \CorvoNfse\Types\Invoice::fromArray(array_merge(self::INVOICE, [
+            'deduction' => 20,
+            'cancellationReason' => 'issue_error',
+            'cancelledAt' => '2026-10-20T10:00:00.000Z',
+        ]));
+
+        self::assertSame(20.0, $invoice->deduction);
+        self::assertSame('issue_error', $invoice->cancellationReason);
+        self::assertSame('2026-10-20T10:00:00.000Z', $invoice->cancelledAt);
+        self::assertNull($invoice->cancellationRequestedAt);
+    }
 }

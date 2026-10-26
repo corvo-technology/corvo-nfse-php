@@ -64,7 +64,8 @@ try {
 $company = $corvo->companies->create([
     'legalName' => 'Empresa Exemplo Ltda',
     'taxId' => '11222333000181',
-    'taxRegime' => 'Simples Nacional', // 'MEI' | 'Simples Nacional' | 'Lucro Presumido' | 'Lucro Real'
+    'taxRegime' => 'Simples Nacional', // 'MEI' | 'Simples Nacional' (the only regimes Corvo serves)
+    'simplesRate' => '6.54', // required for Simples Nacional: effective DAS rate (%), ignored for MEI
     'municipalityCode' => '3550308',   // IBGE code, 7 digits
     'defaultServiceCode' => '010101',  // optional: used when an invoice omits service.code
 ]);
@@ -120,6 +121,42 @@ if ($result->error === null) {
 
 Use `'options' => ['type' => 'SCHEDULE']` with a future `competenceDate` to schedule the issuance. Request bodies and responses keep the server's camelCase keys.
 
+To declare a deduction from the ISS base, send `'deduction'` (greater than 0 and less than `amount` minus `discount`). The invoice is still issued for the full `amount`, and you are responsible for the declared value.
+
+### Issue up to 50 invoices at once
+
+`createBatch` takes 1 to 50 items (they can belong to different companies). Items are checked one by one: valid ones are saved together, invalid ones come back `rejected` and are not saved. Send an `idempotencyKey` per item, so repeating the batch after a timeout returns the saved ones with `replayed`.
+
+```php
+$result = $corvo->invoices->createBatch([
+    ['companyTaxId' => '11222333000181', 'idempotencyKey' => 'sheet-row-2',
+     'service' => ['description' => 'Consultoria'], 'amount' => 150.50, 'competenceDate' => '2026-10-16'],
+    ['companyTaxId' => '11222333000181', 'idempotencyKey' => 'sheet-row-3',
+     'service' => ['description' => 'Manutenção'], 'amount' => 300, 'competenceDate' => '2026-10-16'],
+]);
+
+foreach ($result->data['results'] ?? [] as $item) {
+    if ($item['status'] === 'rejected') {
+        echo $item['index'], ' ', $item['error']['code'], ' ', $item['error']['message'], "\n";
+    }
+}
+```
+
+The route allows 10 batches per minute per tenant (`429` with `Retry-After`).
+
+### Cancel an invoice
+
+```php
+$result = $corvo->invoices->cancel($invoiceId, 'issue_error', 'Wrong amount on the invoice');
+// reason: 'issue_error' | 'service_not_provided' | 'other'
+```
+
+- `queued`: cancelled at once, `status` is `cancelled` with `cancelledAt` set.
+- `authorized`: `status` is `cancelling` while the cancellation is processed at the Sefin. The issuance credit is not refunded.
+- `processing`: stays `processing` with `cancellationRequestedAt` set and is cancelled once authorized.
+
+The description (15 to 255 characters) is required for an authorized or processing invoice and optional for a queued one. Read the invoice again (or listen to the `nfse.invoice.cancelled` and `nfse.invoice.cancellation_rejected` webhooks) to see the outcome: `cancelled`, or back to `authorized` with `lastErrorCode` when the cancellation was rejected.
+
 ### Download the PDF or XML
 
 The invoice must be `authorized` and have its documents ready.
@@ -150,7 +187,7 @@ if (!Webhooks::verifySignature($rawBody, $signature, $webhookSecret)) {
 $event = json_decode($rawBody, true); // deduplicate by $event['id']: the same event can arrive twice
 ```
 
-`Webhooks::WEBHOOK_EVENTS` lists the 9 events you can subscribe to. The `webhook.test` event is only sent by `webhooks->test()`.
+`Webhooks::WEBHOOK_EVENTS` lists the 11 events you can subscribe to. The `webhook.test` event is only sent by `webhooks->test()`.
 
 ## Errors
 
@@ -175,7 +212,7 @@ Every method returns `CorvoNfse\Result`.
 | --- | --- |
 | `companies` | `create`, `get`, `update`, `remove`, `list`, `iterate` |
 | `certificates` | `upload`, `list`, `remove` |
-| `invoices` | `create`, `calculate`, `get`, `list`, `iterate`, `events`, `pdf`, `xml`, `downloadUrl`, `sendEmail` |
+| `invoices` | `create`, `createBatch`, `calculate`, `get`, `list`, `iterate`, `events`, `pdf`, `xml`, `downloadUrl`, `sendEmail`, `cancel` |
 | `webhooks` | `list`, `iterate`, `create`, `remove`, `test` |
 | `webhooks->deliveries` | `list`, `iterate`, `stats`, `retry` |
 | `credits` | `balance`, `plans`, `history`, `iterateHistory` |

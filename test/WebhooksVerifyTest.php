@@ -47,9 +47,11 @@ final class WebhooksVerifyTest extends TestCase
         self::assertFalse(Webhooks::verifySignature(self::BODY, self::SIGNATURE, ''));
     }
 
-    public function testExportsNineWebhookEvents(): void
+    public function testExportsElevenWebhookEvents(): void
     {
-        self::assertCount(9, Webhooks::WEBHOOK_EVENTS);
+        self::assertCount(11, Webhooks::WEBHOOK_EVENTS);
+        self::assertContains('nfse.invoice.cancelled', Webhooks::WEBHOOK_EVENTS);
+        self::assertContains('nfse.invoice.cancellation_rejected', Webhooks::WEBHOOK_EVENTS);
         self::assertContains('nfse.invoice.fiscal_discrepancy', Webhooks::WEBHOOK_EVENTS);
         self::assertNotContains('webhook.test', Webhooks::WEBHOOK_EVENTS);
         self::assertContains('nfse.invoice.authorized', Webhooks::WEBHOOK_EVENTS);

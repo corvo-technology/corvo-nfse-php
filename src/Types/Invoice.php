@@ -63,6 +63,17 @@ final readonly class Invoice
         public string $stage,
         /** When a scheduled invoice is released (ISO), or null for an immediate one. */
         public ?string $scheduledFor,
+        /** Unconditional discount in BRL, when one was declared. */
+        public ?float $discount = null,
+        /** Deduction from the ISS base in BRL, when one was declared. */
+        public ?float $deduction = null,
+        /** `issue_error`, `service_not_provided` or `other`; null until a cancellation is requested. */
+        public ?string $cancellationReason = null,
+        public ?string $cancellationDescription = null,
+        /** When the invoice reached `cancelled` (ISO), or null. */
+        public ?string $cancelledAt = null,
+        /** When a cancellation was requested (ISO), or null. */
+        public ?string $cancellationRequestedAt = null,
     ) {
     }
 
@@ -108,6 +119,12 @@ final readonly class Invoice
             self::wireStr($data, 'emailStatus'),
             self::wireStr($data, 'stage') ?? '',
             self::wireStr($data, 'scheduledFor'),
+            self::wireFloat($data, 'discount'),
+            self::wireFloat($data, 'deduction'),
+            self::wireStr($data, 'cancellationReason'),
+            self::wireStr($data, 'cancellationDescription'),
+            self::wireStr($data, 'cancelledAt'),
+            self::wireStr($data, 'cancellationRequestedAt'),
         );
     }
 }
