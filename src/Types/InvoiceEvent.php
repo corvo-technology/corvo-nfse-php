@@ -18,6 +18,10 @@ final readonly class InvoiceEvent
         public string $toStatus,
         public ?string $reason,
         public string $createdAt,
+        /** `portal` when the transition came from the national portal; null otherwise. */
+        public ?string $source = null,
+        public ?string $portalEvent = null,
+        public ?string $portalNsu = null,
     ) {
     }
 
@@ -33,6 +37,9 @@ final readonly class InvoiceEvent
             self::wireStr($data, 'toStatus') ?? '',
             self::wireStr($data, 'reason'),
             self::wireStr($data, 'createdAt') ?? '',
+            self::wireStr($data, 'source'),
+            self::wireStr($data, 'portalEvent'),
+            self::wireStr($data, 'portalNsu'),
         );
     }
 }

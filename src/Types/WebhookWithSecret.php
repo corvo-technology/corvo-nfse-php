@@ -21,8 +21,9 @@ final readonly class WebhookWithSecret extends Webhook
         string $createdAt,
         string $updatedAt,
         public string $secret,
+        ?string $environment = null,
     ) {
-        parent::__construct($id, $url, $events, $active, $createdAt, $updatedAt);
+        parent::__construct($id, $url, $events, $active, $createdAt, $updatedAt, $environment);
     }
 
     /**
@@ -38,6 +39,7 @@ final readonly class WebhookWithSecret extends Webhook
             self::wireStr($data, 'createdAt') ?? '',
             self::wireStr($data, 'updatedAt') ?? '',
             self::wireStr($data, 'secret') ?? '',
+            self::wireStr($data, 'environment'),
         );
     }
 }

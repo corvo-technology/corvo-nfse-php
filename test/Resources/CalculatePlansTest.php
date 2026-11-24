@@ -63,24 +63,24 @@ final class CalculatePlansTest extends TestCase
     {
         [$client, $mock] = MockApi::client([
             MockApi::json([
-                'data' => [['slug' => 'developer', 'monthlyAllowance' => 200]],
+                'data' => [['slug' => 'solo', 'monthlyAllowance' => 100]],
                 'pagination' => ['limit' => 5, 'hasMore' => false, 'nextCursor' => null],
             ]),
-            MockApi::json(['data' => ['slug' => 'growth', 'monthlyTotalCents' => 8990]]),
-            MockApi::json(['data' => ['recommended_plan' => 'volume', 'total_estimated_cents' => 179990]]),
+            MockApi::json(['data' => ['slug' => 'equipe', 'chargeTotalCents' => 8990]]),
+            MockApi::json(['data' => ['recommended_plan' => 'escala', 'total_estimated_cents' => 179990]]),
             MockApi::json(['data' => null]),
         ]);
 
         $list = $client->plans->list(limit: 5);
         self::assertNull($list->error);
-        self::assertSame('developer', $list->data['data'][0]['slug']);
+        self::assertSame('solo', $list->data['data'][0]['slug']);
         self::assertSame('http://localhost:4000/v1/plans?limit=5', (string) $mock->getLastRequest()?->getUri());
 
-        $plan = $client->plans->get('growth');
-        self::assertSame(8990, $plan->data['monthlyTotalCents']);
+        $plan = $client->plans->get('equipe');
+        self::assertSame(8990, $plan->data['chargeTotalCents']);
 
         $quote = $client->plans->quote(20000);
-        self::assertSame('volume', $quote->data['recommended_plan']);
+        self::assertSame('escala', $quote->data['recommended_plan']);
         self::assertSame('http://localhost:4000/v1/plans/quote?volume=20000', (string) $mock->getLastRequest()?->getUri());
 
         $none = $client->plans->quote(0);

@@ -5,18 +5,18 @@ declare(strict_types=1);
 namespace CorvoNfse\Types;
 
 /**
- * Wire mirror of GET /credits: tenant credit balance and overage counters.
+ * Wire mirror of GET /credits (contract 0.3.0): `balance` is the plan notes left plus the loose
+ * notes bought separately (`avulsoBalance`); there is no overage billing.
  */
 final readonly class CreditBalance
 {
     use Wire;
 
     public function __construct(
-        public string $tenantId,
-        public float $balance,
-        public int $overageUnits,
-        public int $overageAmountCents,
-        public ?int $hardLimit,
+        public int $balance,
+        public int $planRemaining,
+        public int $avulsoBalance,
+        public int $hardLimit,
     ) {
     }
 
@@ -26,11 +26,10 @@ final readonly class CreditBalance
     public static function fromArray(array $data): self
     {
         return new self(
-            self::wireStr($data, 'tenantId') ?? '',
-            self::wireFloat($data, 'balance') ?? 0.0,
-            self::wireInt($data, 'overageUnits') ?? 0,
-            self::wireInt($data, 'overageAmountCents') ?? 0,
-            self::wireInt($data, 'hardLimit'),
+            self::wireInt($data, 'balance') ?? 0,
+            self::wireInt($data, 'planRemaining') ?? 0,
+            self::wireInt($data, 'avulsoBalance') ?? 0,
+            self::wireInt($data, 'hardLimit') ?? 0,
         );
     }
 }

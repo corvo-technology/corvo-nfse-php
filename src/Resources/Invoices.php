@@ -25,13 +25,18 @@ final class Invoices
      * @param array<string, mixed> $params `InvoiceCreateParams` (wire camelCase). Identify the
      *        company with `companyId` or `companyTaxId`; `customer` is optional (when sent,
      *        `taxId` is required); `service.code`, `service.municipalityCode` and
-     *        `service.description` are optional; `options.type` is `IMMEDIATE` or `SCHEDULE`.
+     *        `service.description` are optional; `options.type` is `IMMEDIATE` (default), `SCHEDULE`
+     *        or `RECURRING` (then `options.recurrence: {frequency: WEEKLY|BIWEEKLY|MONTHLY, endsOn?}`
+     *        is required). `purchaseOrder` (up to 60 characters) and `notes` (up to 2000) are optional;
+     *        `customer.foreign` describes a customer outside Brazil.
      *        `discount` is the unconditional discount in BRL (0 up to `amount`); `deduction` is the
      *        ISS base deduction declared by the issuer (greater than 0 and less than `amount` minus
      *        `discount`; the invoice is still issued for the full `amount`).
      * @param string|null $idempotencyKey safe retry key; sent as `Idempotency-Key`.
      *
-     * @return Result<mixed>
+     * @return Result<mixed> an `Invoice` (queued) for `IMMEDIATE`; for `SCHEDULE` and `RECURRING`
+     *         the `Schedule` that was created (snake_case fields, `kind` and `anchor_on`; see
+     *         {@see \CorvoNfse\Types\Schedule::isSchedule()}). Follow its runs with `schedules->listRuns()`.
      */
     public function create(array $params, ?string $idempotencyKey = null): Result
     {
@@ -97,6 +102,7 @@ final class Invoices
      *     from?: string,
      *     to?: string,
      *     externalId?: string,
+     *     customerTaxId?: string,
      *     limit?: int,
      *     cursor?: string
      * } $params
@@ -180,15 +186,70 @@ final class Invoices
      * POST /v1/invoices/{id}/email — (re)send the invoice email.
      *
      * @param string|null $idempotencyKey safe retry key; sent as `Idempotency-Key`.
+     * @param string|null $email send to this address instead of the customer's.
      *
-     * @return Result<mixed>
+     * @return Result<mixed> `InvoiceEmailRequest`: `{emailId, status}`.
      */
-    public function sendEmail(string $id, ?string $idempotencyKey = null): Result
+    public function sendEmail(string $id, ?string $idempotencyKey = null, ?string $email = null): Result
     {
         return $this->http->request(
             'POST',
             '/invoices/' . rawurlencode($id) . '/email',
+            json: $email !== null ? ['email' => $email] : null,
             idempotencyKey: $idempotencyKey,
+        );
+    }
+
+    /**
+     * POST /v1/invoices/{id}/substitute — replace an authorized invoice with a corrected one (answers 202
+     * with the new invoice, `substitutesInvoiceId` set). Only `description` (why), `service.description`,
+     * `purchaseOrder` and `notes` can change. Error `ERROR_INVOICE_NOT_SUBSTITUTABLE`.
+     *
+     * @param array{description: string, service?: array{description?: string}, purchaseOrder?: string, notes?: string} $params
+     * @param string|null $idempotencyKey safe retry key; sent as `Idempotency-Key`.
+     *
+     * @return Result<mixed> `Invoice`.
+     */
+    public function substitute(string $id, array $params, ?string $idempotencyKey = null): Result
+    {
+        return $this->http->request(
+            'POST',
+            '/invoices/' . rawurlencode($id) . '/substitute',
+            json: $params,
+            idempotencyKey: $idempotencyKey,
+        );
+    }
+
+    /**
+     * GET /v1/invoices/overview — counters, daily activity and the latest invoices.
+     *
+     * @param string|null $period `7d` (default) or `30d`.
+     *
+     * @return Result<mixed> `InvoiceOverview`.
+     */
+    public function overview(?string $period = null): Result
+    {
+        return $this->http->request('GET', '/invoices/overview', query: ['period' => $period]);
+    }
+
+    /**
+     * POST /v1/invoices/review — resolve invoices in `manual_review` (up to 100): retry or discard.
+     *
+     * @param string $action `retry` or `discard`.
+     * @param list<string> $invoiceIds
+     *
+     * @return Result<mixed> `{results: list<{id, outcome: accepted|skipped, reason?}>}`.
+     */
+    public function review(string $action, array $invoiceIds): Result
+    {
+        if ($action !== 'retry' && $action !== 'discard') {
+            throw new InvalidArgumentException('Corvo: action must be "retry" or "discard", got: ' . $action);
+        }
+
+        return $this->http->request(
+            'POST',
+            '/invoices/review',
+            json: ['action' => $action, 'invoiceIds' => array_values($invoiceIds)],
         );
     }
 

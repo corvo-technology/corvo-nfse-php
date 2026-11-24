@@ -17,7 +17,11 @@ final class Billing
     }
 
     /**
-     * GET /v1/billing/plan — plan, subscription and usage snapshot.
+     * GET /v1/billing/plan — plan, subscription and usage snapshot (snake_case keys).
+     *
+     * `usage.avulso_balance` holds the loose notes; `subscription` has `stripe_portal_available`,
+     * `stripe_subscription` and `pix_subscription`. A workspace without a plan gets a 404 with
+     * `code: "NO_PLAN_ASSIGNED"`.
      *
      * @return Result<mixed>
      */

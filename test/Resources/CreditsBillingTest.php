@@ -12,11 +12,10 @@ final class CreditsBillingTest extends TestCase
     public function testBalanceReturnsRawEntity(): void
     {
         $balance = [
-            'tenantId' => 't_1',
             'balance' => 420,
-            'overageUnits' => 0,
-            'overageAmountCents' => 0,
-            'hardLimit' => null,
+            'planRemaining' => 400,
+            'avulsoBalance' => 20,
+            'hardLimit' => 1000,
         ];
         [$client] = MockApi::client([MockApi::json(['data' => $balance])]);
 

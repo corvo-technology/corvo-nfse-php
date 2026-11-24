@@ -74,6 +74,11 @@ final readonly class Invoice
         public ?string $cancelledAt = null,
         /** When a cancellation was requested (ISO), or null. */
         public ?string $cancellationRequestedAt = null,
+        /** On a substitute: the id of the invoice it replaces. */
+        public ?string $substitutesInvoiceId = null,
+        public ?string $substitutionDescription = null,
+        /** `taker_rejected` or `blocked`, from the national portal; null otherwise. */
+        public ?string $portalFlag = null,
     ) {
     }
 
@@ -125,6 +130,9 @@ final readonly class Invoice
             self::wireStr($data, 'cancellationDescription'),
             self::wireStr($data, 'cancelledAt'),
             self::wireStr($data, 'cancellationRequestedAt'),
+            self::wireStr($data, 'substitutesInvoiceId'),
+            self::wireStr($data, 'substitutionDescription'),
+            self::wireStr($data, 'portalFlag'),
         );
     }
 }

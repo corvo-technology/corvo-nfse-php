@@ -26,6 +26,7 @@ final class Webhooks
         'nfse.invoice.fiscal_discrepancy',
         'nfse.invoice.cancelled',
         'nfse.invoice.cancellation_rejected',
+        'nfse.invoice.taker_rejected',
     ];
 
     private function __construct()

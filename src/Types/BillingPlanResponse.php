@@ -17,10 +17,14 @@ final readonly class BillingPlanResponse
 
     /**
      * @param array<mixed> $plan raw plan block: `{slug, name, monthly_allowance,
-     *        daily_limit, max_active_companies, monthly_price_cents}` (snake_case).
+     *        daily_limit, max_active_companies, monthly_price_cents}` (snake_case). `slug` is
+     *        `free`, `self-hosted`, `solo`, `equipe`, `empresa` or `escala`: treat it as open.
      * @param array<mixed> $subscription raw subscription block: `{status,
-     *        paid_until, cancel_at_period_end, scheduled_plan, blocked}`.
-     * @param array<mixed> $usage raw usage counters block.
+     *        paid_until, cancel_at_period_end, scheduled_plan, blocked, stripe_portal_available,
+     *        stripe_subscription, pix_subscription}` (`pix_subscription` is an object or null).
+     * @param array<mixed> $usage raw usage block: `active_companies`, `avulso_balance`,
+     *        `credits_remaining`, `credits_reserved`, `credits_used`, `daily_limit`, `daily_usage`,
+     *        `hard_limit`, `max_active_companies`, `monthly_allowance`, `period_end`, `period_start`.
      */
     public function __construct(
         /** @var array<mixed> */

@@ -4,11 +4,11 @@
 
 - **Result-style errors.** API, network and timeout failures return `new Result(null, $error)`: a `CorvoApiError` carrying the server's stable `code`, the HTTP `status`, the `requestId`, field-level `details` and `retryAfter`. Throw `$result->error` yourself if you prefer exceptions.
 - **Pagination built in.** Every list returns a `Result` wrapping `{data, pagination}`, and `iterate()` is a generator that walks all pages.
-- **Safe retries.** Issuing an invoice and sending an email accept an idempotency key.
+- **Safe retries.** Issuing an invoice, sending an email and substituting an invoice accept an idempotency key.
 - **Webhook signature check** in constant time.
-- Built on Guzzle 7, `phpstan` level 9 clean. Library only, no CLI.
+- Built on Guzzle 7, `phpstan` clean. Library only, no CLI.
 
-Full API reference: <https://corvo.tech/en/docs>.
+Full API reference: <https://corvo.tech/en/docs>. The machine-readable contract (OpenAPI 0.3.0, 94 operations) is at <https://corvo.tech/openapi.json>; a copy is kept in `spec/openapi.json` and a test checks that every operation has an SDK method. What changed in each version is in [CHANGELOG.md](CHANGELOG.md).
 
 ## Install
 
@@ -119,7 +119,77 @@ if ($result->error === null) {
 }
 ```
 
-Use `'options' => ['type' => 'SCHEDULE']` with a future `competenceDate` to schedule the issuance. Request bodies and responses keep the server's camelCase keys.
+Request bodies and responses keep the server's camelCase keys (billing, schedules and imports answer in snake_case).
+
+### Schedule or repeat an invoice
+
+With `'options' => ['type' => 'SCHEDULE']` (or `'RECURRING'`) the answer is a **schedule**, not an invoice: the note only exists when the schedule runs (09:00 America/Sao_Paulo, Monday to Friday). `competenceDate` is the date of the first run and must be from tomorrow on.
+
+```php
+use CorvoNfse\Types\Schedule;
+
+$result = $corvo->invoices->create([
+    'companyTaxId' => '11222333000181',
+    'service' => ['description' => 'Mensalidade'],
+    'amount' => 300,
+    'competenceDate' => '2026-12-01',
+    'options' => [
+        'type' => 'RECURRING',
+        'recurrence' => ['frequency' => 'MONTHLY', 'endsOn' => '2027-12-01'], // WEEKLY | BIWEEKLY | MONTHLY
+    ],
+]);
+
+if ($result->error === null && Schedule::isSchedule($result->data)) {
+    $scheduleId = $result->data['id'];
+    $corvo->schedules->listRuns($scheduleId);   // every attempt, newest first
+    $corvo->schedules->pause($scheduleId);      // also resume, cancel, update, get, list
+}
+```
+
+### Customers, CNPJ lookup and favorite services
+
+```php
+$cnpj = $corvo->cnpj->lookup('11222333000181');             // legalName, address, situation, simples, mei
+$customers = $corvo->customers->search(['search' => 'ana', 'limit' => 20]);
+$corvo->customers->update('52998224725', ['email' => 'ana@example.com']);
+$corvo->serviceFavorites->create($companyId, [
+    'label' => 'Consultoria', 'description' => 'Consultoria mensal', 'serviceCode' => '010101', 'amountCents' => 150000,
+]);
+```
+
+### Replace an invoice and resolve manual review
+
+```php
+$corvo->invoices->substitute($invoiceId, ['description' => 'Valor corrigido'], idempotencyKey: 'sub_42');
+$corvo->invoices->review('retry', [$invoiceId]);            // or 'discard'
+```
+
+### Accountant package
+
+The monthly ZIP (`xml/`, `pdf/` and `resumo.csv`) can be downloaded or sent to the accountant.
+
+```php
+$corvo->accountantPackage->update($companyId, 'contador@example.com'); // null turns the monthly send off
+$corvo->accountantPackage->send($companyId, '2026-10');
+$summary = $corvo->invoicePackage->summary($companyId, '2026-10');
+$zip = $corvo->invoicePackage->download($companyId, '2026-10');       // DownloadedFile
+```
+
+### Import a spreadsheet
+
+```php
+$template = $corvo->imports->downloadTemplate();                       // CSV template
+$import = $corvo->imports->start(file_get_contents('notas.csv'), companyId: $companyId, fileName: 'notas.csv');
+$job = $corvo->imports->get($import->data['id']);                      // snake_case: status, counters, ...
+foreach ($corvo->imports->iterateRows($import->data['id'], ['status' => 'invalid']) as $row) {
+    // fix with $corvo->imports->updateRow($id, $row['line'], [...])
+}
+$corvo->imports->emit($import->data['id'], sendEmail: true);           // $corvo->imports->discard($id) to give up
+```
+
+### Credits and plans
+
+`credits->balance()` answers `balance` (plan notes left plus loose notes), `planRemaining`, `avulsoBalance` and `hardLimit`. Plan slugs are `free`, `solo`, `equipe`, `empresa` and `escala` (`self-hosted` on a self-hosted instance): treat them as open strings. Extra notes cost R$ 0,99; `credits->previewPurchase(10)` prices a purchase (buying is done in the dashboard).
 
 To declare a deduction from the ISS base, send `'deduction'` (greater than 0 and less than `amount` minus `discount`). The invoice is still issued for the full `amount`, and you are responsible for the declared value.
 
@@ -187,7 +257,7 @@ if (!Webhooks::verifySignature($rawBody, $signature, $webhookSecret)) {
 $event = json_decode($rawBody, true); // deduplicate by $event['id']: the same event can arrive twice
 ```
 
-`Webhooks::WEBHOOK_EVENTS` lists the 11 events you can subscribe to. The `webhook.test` event is only sent by `webhooks->test()`.
+`Webhooks::WEBHOOK_EVENTS` lists the 12 events you can subscribe to (including `nfse.invoice.taker_rejected`). A webhook belongs to the environment of the key that created it: a `corvo_test_` key cannot reach live webhooks, and URLs that resolve to private networks are refused. The `webhook.test` event is only sent by `webhooks->test()`.
 
 ## Errors
 
@@ -212,10 +282,24 @@ Every method returns `CorvoNfse\Result`.
 | --- | --- |
 | `companies` | `create`, `get`, `update`, `remove`, `list`, `iterate` |
 | `certificates` | `upload`, `list`, `remove` |
-| `invoices` | `create`, `createBatch`, `calculate`, `get`, `list`, `iterate`, `events`, `pdf`, `xml`, `downloadUrl`, `sendEmail`, `cancel` |
+| `fiscalProfiles` | `list`, `upsert`, `approve` |
+| `serviceTaxProfiles` | `list`, `create`, `update`, `remove`, `approve` |
+| `dpsSequence` | `get`, `set` |
+| `accountantPackage` | `get`, `update`, `send`, `listSends` |
+| `invoicePackage` | `summary`, `download` |
+| `serviceFavorites` | `list`, `create`, `remove` |
+| `customers` | `search`, `iterate`, `get`, `update`, `remove` |
+| `cnpj` | `lookup` |
+| `invoices` | `create`, `createBatch`, `calculate`, `get`, `list`, `iterate`, `events`, `pdf`, `xml`, `downloadUrl`, `sendEmail`, `cancel`, `substitute`, `overview`, `review` |
+| `schedules` | `list`, `iterate`, `get`, `update`, `pause`, `resume`, `cancel`, `listRuns` |
+| `imports` | `start`, `list`, `get`, `emit`, `listRows`, `iterateRows`, `updateRow`, `discard`, `downloadTemplate`, `downloadErrors` |
+| `integrations` | `listProviders` |
+| `integrationConnections` | `list`, `create`, `get`, `validate`, `updateCredentials`, `activate`, `pause`, `disconnect`, `listRules`, `replaceRules`, `listEvents`, `listOperations` |
+| `integrationOperations` | `completeCustomer`, `retry` |
+| `fiscalPortal` | `status` |
 | `webhooks` | `list`, `iterate`, `create`, `remove`, `test` |
 | `webhooks->deliveries` | `list`, `iterate`, `stats`, `retry` |
-| `credits` | `balance`, `plans`, `history`, `iterateHistory` |
+| `credits` | `balance`, `plans`, `history`, `iterateHistory`, `previewPurchase` |
 | `billing` | `plan`, `usage` |
 | `plans` | `list`, `get`, `quote` (public price catalog) |
 | `health` | `live`, `ready` |
@@ -239,7 +323,8 @@ Readonly wire types live in `CorvoNfse\Types` (`Company`, `Invoice`, `Webhook`, 
 
 - **Auth.** Every request sends `X-API-Key`. Keys are `corvo_test_...` or `corvo_live_...` and belong to one account and environment; the key decides the environment.
 - **Responses.** Single resources and list items come back as the API's `data`; lists add `pagination`.
-- **Idempotency.** `invoices->create` and `invoices->sendEmail` accept an idempotency key.
+- **Idempotency.** `invoices->create`, `invoices->sendEmail` and `invoices->substitute` accept an idempotency key (`Idempotency-Key` header). The batch takes an `idempotencyKey` per item.
+- **User-Agent.** Every request sends `corvo-nfse-php/<version>`.
 
 ## Development
 
@@ -249,7 +334,19 @@ vendor/bin/phpunit    # unit tests; the contract test skips without env
 vendor/bin/phpstan analyse
 ```
 
-The contract test runs only when `CORVO_API_KEY` and `CORVO_BASE_URL` point to a reachable instance.
+`test/Contract/OperationsTest.php` reads `spec/openapi.json` and fails when an operation of the contract has no SDK method, or when a method sends another HTTP method or path than the contract declares. To follow a new API version, replace `spec/openapi.json` (download <https://corvo.tech/openapi.json>), run the tests and add the missing methods.
+
+The live contract test runs only when `CORVO_API_KEY` and `CORVO_BASE_URL` point to a reachable instance.
+
+## Publishing
+
+Packagist reads the git tags, so a release is a tag:
+
+1. Bump `CorvoNfse\Version::VERSION` and add the entry in `CHANGELOG.md`.
+2. `git tag v0.3.0 && git push origin v0.3.0`.
+3. The `Release` workflow checks that the tag matches `Version::VERSION`, runs PHPStan and the tests, and creates the GitHub release with generated notes (it uses the built-in `GITHUB_TOKEN`; no secret is needed).
+
+One-time setup for Packagist (the repository owner): submit the repository at <https://packagist.org/packages/submit> (package `corvo-technology/corvo-nfse`), then in the repository's Settings > Webhooks add the Packagist webhook (or install the Packagist GitHub app) so every push and tag updates the package by itself. `API_TOKEN` and the webhook secret live on Packagist and GitHub, not in the workflow.
 
 ## License
 

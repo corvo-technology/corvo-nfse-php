@@ -141,4 +141,67 @@ final class TypesTest extends TestCase
         self::assertFalse($billing->subscription['cancel_at_period_end']);
         self::assertSame(12, $billing->usage['credits_used']);
     }
+
+    public function testCreditBalanceFollowsContract030(): void
+    {
+        $balance = \CorvoNfse\Types\CreditBalance::fromArray([
+            'balance' => 12, 'planRemaining' => 10, 'avulsoBalance' => 2, 'hardLimit' => 500,
+        ]);
+
+        self::assertSame(12, $balance->balance);
+        self::assertSame(10, $balance->planRemaining);
+        self::assertSame(2, $balance->avulsoBalance);
+        self::assertSame(500, $balance->hardLimit);
+    }
+
+    public function testNewWireTypesMirrorTheContract(): void
+    {
+        $customer = \CorvoNfse\Types\SavedCustomer::fromArray([
+            'taxId' => '52998224725', 'name' => 'Ana', 'email' => null,
+            'createdAt' => '2026-11-01T00:00:00Z', 'updatedAt' => '2026-11-02T00:00:00Z', 'lastUsedAt' => '2026-11-03T00:00:00Z',
+        ]);
+        self::assertSame('Ana', $customer->name);
+        self::assertNull($customer->email);
+
+        $preview = \CorvoNfse\Types\PurchasePreview::fromArray(['units' => 10, 'unitPriceCents' => 99, 'totalCents' => 990]);
+        self::assertSame(990, $preview->totalCents);
+
+        $run = \CorvoNfse\Types\ScheduleRun::fromArray([
+            'id' => 'r1', 'attempt' => 2, 'outcome' => 'failed', 'error_code' => 'ERROR_X', 'error_message' => 'x',
+            'invoice_id' => null, 'occurrence_on' => '2026-12-01', 'ran_on' => '2026-12-01', 'created_at' => '2026-12-01T12:00:00Z',
+        ]);
+        self::assertSame(2, $run->attempt);
+        self::assertNull($run->invoice_id);
+
+        $job = \CorvoNfse\Types\ImportJob::fromArray([
+            'id' => 'i1', 'status' => 'ready', 'company_id' => null, 'file_name' => 'a.csv', 'created_at' => '2026-11-01T00:00:00Z',
+            'counters' => ['total' => 3, 'valid' => 2, 'invalid' => 1], 'unknown_columns' => ['x'],
+        ]);
+        self::assertSame(3, $job->counters['total']);
+        self::assertSame(['x'], $job->unknown_columns);
+        self::assertNull($job->company_id);
+
+        $invoice = Invoice::fromArray(['id' => 'i', 'substitutesInvoiceId' => 'old', 'portalFlag' => 'taker_rejected']);
+        self::assertSame('old', $invoice->substitutesInvoiceId);
+        self::assertSame('taker_rejected', $invoice->portalFlag);
+
+        $event = \CorvoNfse\Types\InvoiceEvent::fromArray(['id' => 'e', 'source' => 'portal', 'portalNsu' => '77']);
+        self::assertSame('portal', $event->source);
+        self::assertSame('77', $event->portalNsu);
+    }
+
+    public function testPackageSummaryTotalIsADecimalString(): void
+    {
+        $summary = \CorvoNfse\Types\PackageSummary::fromArray(['companyName' => 'A', 'companyTaxId' => '1', 'count' => 2, 'limit' => 10, 'month' => '2026-10', 'total' => '1234.50']);
+        self::assertSame('1234.50', $summary->total);
+    }
+
+    public function testCompanyNullableFieldsReadAsNull(): void
+    {
+        $company = Company::fromArray(['id' => 'c', 'tradeName' => null, 'addressStreet' => null, 'municipalReg' => null, 'defaultServiceCode' => null]);
+        self::assertNull($company->tradeName);
+        self::assertNull($company->addressStreet);
+        self::assertNull($company->municipalReg);
+        self::assertNull($company->defaultServiceCode);
+    }
 }

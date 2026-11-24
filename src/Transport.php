@@ -302,6 +302,7 @@ final class Transport
         $headers = [
             'X-API-Key' => $this->apiKey,
             'Accept' => 'application/json',
+            'User-Agent' => 'corvo-nfse-php/' . Version::VERSION,
         ];
         if ($idempotencyKey !== null && $idempotencyKey !== '') {
             $headers['Idempotency-Key'] = $idempotencyKey;
