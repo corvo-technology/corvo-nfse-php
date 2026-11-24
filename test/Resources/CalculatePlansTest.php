@@ -66,7 +66,7 @@ final class CalculatePlansTest extends TestCase
                 'data' => [['slug' => 'solo', 'monthlyAllowance' => 100]],
                 'pagination' => ['limit' => 5, 'hasMore' => false, 'nextCursor' => null],
             ]),
-            MockApi::json(['data' => ['slug' => 'equipe', 'monthlyTotalCents' => 8990]]),
+            MockApi::json(['data' => ['slug' => 'equipe', 'chargeTotalCents' => 8990]]),
             MockApi::json(['data' => ['recommended_plan' => 'escala', 'total_estimated_cents' => 179990]]),
             MockApi::json(['data' => null]),
         ]);
@@ -77,7 +77,7 @@ final class CalculatePlansTest extends TestCase
         self::assertSame('http://localhost:4000/v1/plans?limit=5', (string) $mock->getLastRequest()?->getUri());
 
         $plan = $client->plans->get('equipe');
-        self::assertSame(8990, $plan->data['monthlyTotalCents']);
+        self::assertSame(8990, $plan->data['chargeTotalCents']);
 
         $quote = $client->plans->quote(20000);
         self::assertSame('escala', $quote->data['recommended_plan']);
