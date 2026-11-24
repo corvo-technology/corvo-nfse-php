@@ -22,6 +22,8 @@ readonly class Webhook
         public bool $active,
         public string $createdAt,
         public string $updatedAt,
+        /** `test` or `live`: the environment of the key that created it. */
+        public ?string $environment = null,
     ) {
     }
 
@@ -37,6 +39,7 @@ readonly class Webhook
             self::wireBool($data, 'active') ?? false,
             self::wireStr($data, 'createdAt') ?? '',
             self::wireStr($data, 'updatedAt') ?? '',
+            self::wireStr($data, 'environment'),
         );
     }
 }

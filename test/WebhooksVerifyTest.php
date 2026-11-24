@@ -47,9 +47,21 @@ final class WebhooksVerifyTest extends TestCase
         self::assertFalse(Webhooks::verifySignature(self::BODY, self::SIGNATURE, ''));
     }
 
-    public function testExportsElevenWebhookEvents(): void
+    public function testEventsMatchTheContractEnum(): void
     {
-        self::assertCount(11, Webhooks::WEBHOOK_EVENTS);
+        $spec = json_decode((string) file_get_contents(__DIR__ . '/../spec/openapi.json'), true, 512, JSON_THROW_ON_ERROR);
+        $contract = $spec['components']['schemas']['WebhookEventType']['enum'];
+        $sdk = Webhooks::WEBHOOK_EVENTS;
+        sort($contract);
+        sort($sdk);
+
+        self::assertSame($contract, $sdk);
+    }
+
+    public function testExportsTwelveWebhookEvents(): void
+    {
+        self::assertCount(12, Webhooks::WEBHOOK_EVENTS);
+        self::assertContains('nfse.invoice.taker_rejected', Webhooks::WEBHOOK_EVENTS);
         self::assertContains('nfse.invoice.cancelled', Webhooks::WEBHOOK_EVENTS);
         self::assertContains('nfse.invoice.cancellation_rejected', Webhooks::WEBHOOK_EVENTS);
         self::assertContains('nfse.invoice.fiscal_discrepancy', Webhooks::WEBHOOK_EVENTS);

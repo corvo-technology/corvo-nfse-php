@@ -1,0 +1,52 @@
+name: Release
+
+# Runs when a version tag is pushed (git tag v0.3.0 && git push origin v0.3.0).
+# It checks the tag against the code, runs the tests and creates the GitHub release.
+#
+# Publishing to Packagist needs NO step here: Packagist reads the git tags of the
+# repository. Connect it once (see "Publishing" in the README): submit the repository
+# at https://packagist.org/packages/submit and enable its GitHub webhook, so each new
+# tag appears on Packagist by itself. No secret is stored in this repository.
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3"
+          coverage: none
+          tools: composer:v2
+
+      - name: Tag matches src/Version.php
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          version="$(php -r 'require "src/Version.php"; echo CorvoNfse\Version::VERSION;')"
+          if [ "$tag" != "$version" ]; then
+            echo "Tag $GITHUB_REF_NAME does not match CorvoNfse\\Version::VERSION ($version)" >&2
+            exit 1
+          fi
+
+      - name: Install
+        run: composer install --prefer-dist --no-progress --no-interaction
+
+      - name: Static analysis
+        run: vendor/bin/phpstan analyse --memory-limit=512M
+
+      - name: Test
+        run: vendor/bin/phpunit
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --generate-notes --verify-tag

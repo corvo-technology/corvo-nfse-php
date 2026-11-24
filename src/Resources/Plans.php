@@ -27,7 +27,8 @@ final class Plans
     }
 
     /**
-     * GET /v1/plans/{slug} — `free`, `developer`, `growth`, `scale` or `volume`.
+     * GET /v1/plans/{slug} — `free`, `solo`, `equipe`, `empresa` or `escala`
+     * (`self-hosted` on a self-hosted instance). Treat the slug as an open string.
      *
      * @return Result<mixed>
      */

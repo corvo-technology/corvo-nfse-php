@@ -11,6 +11,10 @@ use CorvoNfse\Transport;
  * Webhook endpoints and their delivery attempts.
  *
  * `$webhooks->deliveries` covers the delivery log: list, iterate, stats, retry.
+ *
+ * A webhook created with a key is tied to that key's environment (`test` or `live`) and only
+ * receives its events; a test key cannot reach live webhooks. URLs that resolve to private,
+ * loopback, link-local or similar addresses are refused.
  */
 final class Webhooks
 {

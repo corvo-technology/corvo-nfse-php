@@ -19,7 +19,8 @@ final class Credits
     /**
      * GET /v1/credits — current balance.
      *
-     * @return Result<mixed>
+     * @return Result<mixed> `CreditBalance`: `balance` (plan notes left plus loose notes),
+     *         `planRemaining`, `avulsoBalance` and `hardLimit`.
      */
     public function balance(): Result
     {
@@ -58,6 +59,17 @@ final class Credits
     public function iterateHistory(array $params = []): \Generator
     {
         return $this->http->iterate('/credits/history', $params, self::plain());
+    }
+
+    /**
+     * GET /v1/credits/purchase/preview?units=N — price a one-off purchase (R$ 0,99 each, at
+     * least 3 notes, whole numbers). Buying is done in the dashboard.
+     *
+     * @return Result<mixed> `PurchasePreview`: `{units, unitPriceCents, totalCents}`.
+     */
+    public function previewPurchase(int $units): Result
+    {
+        return $this->http->request('GET', '/credits/purchase/preview', query: ['units' => $units]);
     }
 
     /** @return \Closure(mixed): mixed */
