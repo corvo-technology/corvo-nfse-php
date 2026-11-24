@@ -17,7 +17,8 @@ final readonly class PackageSummary
         public int $count,
         public int $limit,
         public string $month,
-        public float $total,
+        /** Decimal string such as "1234.50" (exact; do not cast to float for money). */
+        public string $total,
     ) {
     }
 
@@ -32,7 +33,7 @@ final readonly class PackageSummary
             self::wireInt($data, 'count') ?? 0,
             self::wireInt($data, 'limit') ?? 0,
             self::wireStr($data, 'month') ?? '',
-            self::wireFloat($data, 'total') ?? 0.0,
+            self::wireDecimalString($data, 'total'),
         );
     }
 }

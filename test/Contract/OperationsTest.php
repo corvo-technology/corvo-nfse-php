@@ -43,6 +43,7 @@ final class OperationsTest extends TestCase
         'credits_listPlans',
         'customers_search',
         'imports_listRows',
+        'plans_list',
         'invoices_list',
         'invoices_listEvents',
         'schedules_list',
@@ -141,6 +142,8 @@ final class OperationsTest extends TestCase
             'invoices_review' => [fn (Client $c) => $c->invoices->review('retry', ['V1', 'V2']), [], [], ['action' => 'retry', 'invoiceIds' => ['V1', 'V2']]],
             'invoices_sendEmail' => [fn (Client $c) => $c->invoices->sendEmail('V1', 'idem-2', 'outro@example.com'), ['V1'], [], ['email' => 'outro@example.com'], true],
             'invoices_substitute' => [fn (Client $c) => $c->invoices->substitute('V1', ['description' => 'corrigir descricao do servico'], 'idem-3'), ['V1'], [], ['description' => 'corrigir descricao do servico'], true],
+            'plans_get' => [fn (Client $c) => $c->plans->get('equipe', 'annual'), ['equipe'], ['cycle' => 'annual'], null],
+            'plans_list' => [fn (Client $c) => $c->plans->list(5, 'cur', 'annual'), [], ['limit' => '5', 'cursor' => 'cur', 'cycle' => 'annual'], null],
             'schedules_cancel' => [fn (Client $c) => $c->schedules->cancel('S1'), ['S1'], [], null],
             'schedules_get' => [fn (Client $c) => $c->schedules->get('S1'), ['S1'], [], null],
             'schedules_list' => [fn (Client $c) => $c->schedules->list(['status' => 'active', 'companyId' => 'C1', 'limit' => 5, 'cursor' => '10']), [], ['status' => 'active', 'companyId' => 'C1', 'limit' => '5', 'cursor' => '10'], null],
@@ -182,12 +185,12 @@ final class OperationsTest extends TestCase
         return $out;
     }
 
-    public function testContractIsVersion030With92Operations(): void
+    public function testContractIsVersion030With94Operations(): void
     {
         $spec = self::spec();
 
         self::assertSame('0.3.0', $spec['info']['version']);
-        self::assertCount(92, self::contractOperations());
+        self::assertCount(94, self::contractOperations());
     }
 
     public function testEveryContractOperationIsImplementedAndNothingElseIsMapped(): void

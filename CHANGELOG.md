@@ -2,7 +2,7 @@
 
 ## 0.3.0
 
-Follows the public API contract 0.3.0 ([openapi.json](https://corvo.tech/openapi.json), 92 operations). The contract is vendored at `spec/openapi.json` and a test checks that every operation has an SDK method.
+Follows the public API contract 0.3.0 ([openapi.json](https://corvo.tech/openapi.json), 94 operations). The contract is vendored at `spec/openapi.json` and a test checks that every operation has an SDK method.
 
 ### Breaking
 
@@ -12,10 +12,21 @@ Follows the public API contract 0.3.0 ([openapi.json](https://corvo.tech/openapi
 - **`billing->plan()`**: `usage.overage_units` and `usage.overage_amount_cents` are gone; new `usage.avulso_balance` and `subscription.stripe_portal_available`, `stripe_subscription`, `pix_subscription`. A workspace without a plan gets a 404 with `code: "NO_PLAN_ASSIGNED"`.
 - **Credit purchase preview** is now `GET /credits/purchase/preview?units=N`: `credits->previewPurchase($units)`.
 - **Webhooks and environments.** A webhook created with a key belongs to that key's environment. A `corvo_test_` key can no longer reach live webhooks, and webhook URLs that resolve to private networks are refused by the API.
+- **`invoicePackage->summary()`**: `total` is a decimal string such as `"1234.50"` (was a number); `Types\PackageSummary::$total` is now `string`.
+- **`companies->update()`**: `taxId` is no longer accepted (the CNPJ cannot be changed).
 - **`invoices->sendEmail()`** has a new last parameter, `$email`, to send to another address. Positional calls keep working.
+
+### Contract details
+
+- Nullable fields: company `tradeName`, address fields, `municipalReg`, `defaultServiceCode` and tax rates; invoice `emailStatus`, `lastEmailStatus`, `cancellationReason`, `portalFlag`; `classification`, `applicability` and `calculation` of `invoices->calculate()`.
+- `invoices->createBatch()`: `results[].error.details` is a list of issues or an object.
+- `nfseNumber`, `dpsNumber` and `DpsSequence::$lastNumber` are integers (int64, at least 1).
+- `invoices->sendEmail()` and `imports->emit()` send no body when called without parameters.
+- `billing->plan()`: `stripe_subscription` is a boolean and `pix_subscription` an object or null.
 
 ### Added
 
+- Public plans catalog (no API key needed): `plans->list()` and `plans->get()` answer `PlanPrice` and take an optional `$cycle` (`monthly` or `annual`).
 - Customers: `customers->search/iterate/get/update/remove`, `cnpj->lookup`, `serviceFavorites->list/create/remove`.
 - Accountant package: `accountantPackage->get/update/send/listSends`, `invoicePackage->summary/download` (monthly ZIP).
 - Invoices: `substitute` (with idempotency key), `overview`, `review`, `list` filter `customerTaxId`, `sendEmail` to another address.

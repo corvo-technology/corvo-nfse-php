@@ -189,4 +189,19 @@ final class TypesTest extends TestCase
         self::assertSame('portal', $event->source);
         self::assertSame('77', $event->portalNsu);
     }
+
+    public function testPackageSummaryTotalIsADecimalString(): void
+    {
+        $summary = \CorvoNfse\Types\PackageSummary::fromArray(['companyName' => 'A', 'companyTaxId' => '1', 'count' => 2, 'limit' => 10, 'month' => '2026-10', 'total' => '1234.50']);
+        self::assertSame('1234.50', $summary->total);
+    }
+
+    public function testCompanyNullableFieldsReadAsNull(): void
+    {
+        $company = Company::fromArray(['id' => 'c', 'tradeName' => null, 'addressStreet' => null, 'municipalReg' => null, 'defaultServiceCode' => null]);
+        self::assertNull($company->tradeName);
+        self::assertNull($company->addressStreet);
+        self::assertNull($company->municipalReg);
+        self::assertNull($company->defaultServiceCode);
+    }
 }

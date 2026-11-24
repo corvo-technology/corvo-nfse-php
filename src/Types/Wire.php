@@ -38,6 +38,24 @@ trait Wire
         return null;
     }
 
+    /**
+     * A decimal sent as a string ("1234.50"); a number from an older server is kept as its text.
+     *
+     * @param array<mixed> $data
+     */
+    protected static function wireDecimalString(array $data, string $key): string
+    {
+        $value = $data[$key] ?? null;
+        if (is_string($value) && is_numeric($value)) {
+            return $value;
+        }
+        if (is_int($value) || is_float($value)) {
+            return (string) $value;
+        }
+
+        return '0';
+    }
+
     /** @param array<mixed> $data */
     protected static function wireFloat(array $data, string $key): ?float
     {

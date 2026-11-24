@@ -21,7 +21,7 @@ final class InvoicePackage
      *
      * @param string $month competence month, `YYYY-MM`.
      *
-     * @return Result<mixed> `PackageSummary`: companyName, companyTaxId, count, limit, month, total.
+     * @return Result<mixed> `PackageSummary`: companyName, companyTaxId, count, limit, month, total (`total` is a decimal string such as "1234.50").
      */
     public function summary(string $companyId, string $month): Result
     {

@@ -8,7 +8,7 @@
 - **Webhook signature check** in constant time.
 - Built on Guzzle 7, `phpstan` clean. Library only, no CLI.
 
-Full API reference: <https://corvo.tech/en/docs>. The machine-readable contract (OpenAPI 0.3.0, 92 operations) is at <https://corvo.tech/openapi.json>; a copy is kept in `spec/openapi.json` and a test checks that every operation has an SDK method. What changed in each version is in [CHANGELOG.md](CHANGELOG.md).
+Full API reference: <https://corvo.tech/en/docs>. The machine-readable contract (OpenAPI 0.3.0, 94 operations) is at <https://corvo.tech/openapi.json>; a copy is kept in `spec/openapi.json` and a test checks that every operation has an SDK method. What changed in each version is in [CHANGELOG.md](CHANGELOG.md).
 
 ## Install
 

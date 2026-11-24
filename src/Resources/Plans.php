@@ -19,22 +19,26 @@ final class Plans
     /**
      * GET /v1/plans — from the smallest to the largest allowance.
      *
-     * @return Result<mixed> array{data: list<mixed>, pagination: array<string, mixed>}
+     * Public, no API key needed. `$cycle`: `monthly` (default) or `annual` (discounted).
+     *
+     * @return Result<mixed> array{data: list<mixed>, pagination: array<string, mixed>} of `PlanPrice`.
      */
-    public function list(?int $limit = null, ?string $cursor = null): Result
+    public function list(?int $limit = null, ?string $cursor = null, ?string $cycle = null): Result
     {
-        return $this->http->list('/plans', ['limit' => $limit, 'cursor' => $cursor], static fn (mixed $item): mixed => $item);
+        return $this->http->list('/plans', ['limit' => $limit, 'cursor' => $cursor, 'cycle' => $cycle], static fn (mixed $item): mixed => $item);
     }
 
     /**
      * GET /v1/plans/{slug} — `free`, `solo`, `equipe`, `empresa` or `escala`
      * (`self-hosted` on a self-hosted instance). Treat the slug as an open string.
      *
-     * @return Result<mixed>
+     * Public, no API key needed. `$cycle`: `monthly` (default) or `annual`.
+     *
+     * @return Result<mixed> `PlanPrice`.
      */
-    public function get(string $slug): Result
+    public function get(string $slug, ?string $cycle = null): Result
     {
-        return $this->http->request('GET', '/plans/' . rawurlencode($slug));
+        return $this->http->request('GET', '/plans/' . rawurlencode($slug), query: $cycle !== null ? ['cycle' => $cycle] : []);
     }
 
     /**
